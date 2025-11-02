@@ -21,6 +21,15 @@ serve(async (req) => {
       );
     }
 
+    // Validate image is a data URL
+    if (!image.startsWith('data:image/')) {
+      console.error("Invalid image format received");
+      return new Response(
+        JSON.stringify({ error: "Image must be a data URL (data:image/...)" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
     const OPENAI_API_KEY = Deno.env.get("OPENAI_KEY");
     if (!OPENAI_API_KEY) {
       throw new Error("OPENAI_KEY is not configured");
@@ -58,22 +67,36 @@ serve(async (req) => {
       }),
     });
 
+    const analysisText = await analysisResponse.text();
+    console.log("Analysis response status:", analysisResponse.status);
+    console.log("Analysis response body:", analysisText);
+
     if (!analysisResponse.ok) {
-      const errorText = await analysisResponse.text();
-      console.error("OpenAI analysis error:", analysisResponse.status, errorText);
       return new Response(
-        JSON.stringify({ error: `Analysis failed: ${analysisResponse.status} - ${errorText}` }),
+        JSON.stringify({ error: `Analysis failed: ${analysisResponse.status} - ${analysisText}` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
 
-    const analysisData = await analysisResponse.json();
-    console.log("Analysis response:", JSON.stringify(analysisData));
+    let analysisData;
+    try {
+      analysisData = JSON.parse(analysisText);
+    } catch (e) {
+      console.error("Failed to parse analysis response:", e);
+      return new Response(
+        JSON.stringify({ error: "Invalid response from OpenAI" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
     const productDescription = analysisData.choices?.[0]?.message?.content;
 
     if (!productDescription) {
-      console.error("No product description in response:", JSON.stringify(analysisData));
-      throw new Error("Failed to analyze product image - no description returned");
+      console.error("No product description in response:", analysisText);
+      return new Response(
+        JSON.stringify({ error: "Failed to analyze product image - no description returned" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
     }
 
     console.log("Product analyzed. Generating variant with scene:", sceneDescription);
