@@ -10,6 +10,13 @@ export const logger = BRAINTRUST_API_KEY
     })
   : null;
 
+// Debug logging
+console.log("Braintrust logger initialized:", {
+  hasKey: !!BRAINTRUST_API_KEY,
+  keyLength: BRAINTRUST_API_KEY?.length || 0,
+  loggerExists: !!logger,
+});
+
 // Track timing metrics
 const metrics: Record<string, number> = {};
 
