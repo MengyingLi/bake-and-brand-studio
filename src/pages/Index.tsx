@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Wand2, ChefHat } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logGenerationEvent, logUserInteraction } from "@/lib/braintrust";
 
 const Index = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -14,8 +15,18 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<"analyzing" | "generating" | null>(null);
 
-  const handleClearImage = () => {
+  const handleImageSelect = async (file: File) => {
+    setSelectedImage(file);
+    // Log image upload
+    await logUserInteraction("upload_image", {
+      imageSize: file.size,
+    });
+  };
+
+  const handleClearImage = async () => {
     setSelectedImage(null);
+    // Log clear action
+    await logUserInteraction("clear_image");
   };
 
   const handleGenerate = async () => {
@@ -26,6 +37,13 @@ const Index = () => {
 
     setIsGenerating(true);
     setGenerationStep("analyzing");
+    
+    // Log start of generation
+    await logGenerationEvent("start", {
+      imageUploaded: true,
+      sceneDescription: sceneDescription || undefined,
+      step: "analyzing",
+    });
     
     try {
       // Create canvas to convert image to proper format
@@ -66,7 +84,12 @@ const Index = () => {
         const base64Image = canvas.toDataURL('image/png');
         
         // Simulate step transition for better UX
-        setTimeout(() => setGenerationStep("generating"), 3000);
+        setTimeout(() => {
+          setGenerationStep("generating");
+          logGenerationEvent("start", {
+            step: "generating",
+          });
+        }, 3000);
         
         const { data, error } = await supabase.functions.invoke("generate-food-variant", {
           body: {
@@ -83,6 +106,12 @@ const Index = () => {
         if (data?.imageUrl) {
           setGeneratedImages((prev) => [...prev, data.imageUrl]);
           toast.success("Variant generated successfully!");
+          
+          // Log successful completion
+          await logGenerationEvent("complete", {
+            success: true,
+            sceneDescription: sceneDescription || undefined,
+          });
         } else {
           throw new Error("No image URL returned");
         }
@@ -91,11 +120,16 @@ const Index = () => {
         setGenerationStep(null);
       };
       
-      img.onerror = () => {
+      img.onerror = async () => {
         URL.revokeObjectURL(objectUrl);
         toast.error("Failed to load image file");
         setIsGenerating(false);
         setGenerationStep(null);
+        
+        // Log error
+        await logGenerationEvent("error", {
+          error: "Failed to load image file",
+        });
       };
       
       img.src = objectUrl;
@@ -104,6 +138,11 @@ const Index = () => {
       toast.error("Failed to generate variant. Please try again.");
       setIsGenerating(false);
       setGenerationStep(null);
+      
+      // Log error
+      await logGenerationEvent("error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   };
 
@@ -134,7 +173,7 @@ const Index = () => {
           {/* Upload Section */}
           <section className="space-y-6">
             <ImageUpload
-              onImageSelect={setSelectedImage}
+              onImageSelect={handleImageSelect}
               selectedImage={selectedImage}
               onClear={handleClearImage}
             />
