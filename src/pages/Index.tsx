@@ -26,12 +26,42 @@ const Index = () => {
     setIsGenerating(true);
     
     try {
-      // Convert image to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(selectedImage);
+      // Create canvas to convert image to proper format
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(selectedImage);
       
-      reader.onload = async () => {
-        const base64Image = reader.result as string;
+      img.onload = async () => {
+        URL.revokeObjectURL(objectUrl);
+        
+        // Create canvas to ensure proper format
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          throw new Error("Failed to create canvas context");
+        }
+        
+        // Resize if too large (max 1920px)
+        const maxSize = 1920;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = (height / width) * maxSize;
+            width = maxSize;
+          } else {
+            width = (width / height) * maxSize;
+            height = maxSize;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to PNG base64
+        const base64Image = canvas.toDataURL('image/png');
         
         const { data, error } = await supabase.functions.invoke("generate-food-variant", {
           body: {
@@ -40,21 +70,31 @@ const Index = () => {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Edge function error:", error);
+          throw error;
+        }
 
         if (data?.imageUrl) {
           setGeneratedImages((prev) => [...prev, data.imageUrl]);
           toast.success("Variant generated successfully!");
+        } else {
+          throw new Error("No image URL returned");
         }
+        
+        setIsGenerating(false);
       };
-
-      reader.onerror = () => {
-        throw new Error("Failed to read image file");
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        toast.error("Failed to load image file");
+        setIsGenerating(false);
       };
+      
+      img.src = objectUrl;
     } catch (error) {
       console.error("Generation error:", error);
       toast.error("Failed to generate variant. Please try again.");
-    } finally {
       setIsGenerating(false);
     }
   };

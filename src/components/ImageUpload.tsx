@@ -30,8 +30,11 @@ export const ImageUpload = ({ onImageSelect, selectedImage, onClear }: ImageUplo
 
       const files = e.dataTransfer.files;
       if (files && files[0]) {
-        if (files[0].type.startsWith("image/")) {
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (validTypes.includes(files[0].type)) {
           onImageSelect(files[0]);
+        } else {
+          alert('Please upload a JPG, PNG, or WebP image');
         }
       }
     },
@@ -41,6 +44,12 @@ export const ImageUpload = ({ onImageSelect, selectedImage, onClear }: ImageUplo
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(files[0].type)) {
+        alert('Please upload a JPG, PNG, or WebP image');
+        return;
+      }
       onImageSelect(files[0]);
     }
   };
