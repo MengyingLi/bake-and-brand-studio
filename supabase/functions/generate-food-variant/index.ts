@@ -61,14 +61,19 @@ serve(async (req) => {
     if (!analysisResponse.ok) {
       const errorText = await analysisResponse.text();
       console.error("OpenAI analysis error:", analysisResponse.status, errorText);
-      throw new Error(`Failed to analyze image: ${analysisResponse.status}`);
+      return new Response(
+        JSON.stringify({ error: `Analysis failed: ${analysisResponse.status} - ${errorText}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
     }
 
     const analysisData = await analysisResponse.json();
+    console.log("Analysis response:", JSON.stringify(analysisData));
     const productDescription = analysisData.choices?.[0]?.message?.content;
 
     if (!productDescription) {
-      throw new Error("Failed to analyze product image");
+      console.error("No product description in response:", JSON.stringify(analysisData));
+      throw new Error("Failed to analyze product image - no description returned");
     }
 
     console.log("Product analyzed. Generating variant with scene:", sceneDescription);
