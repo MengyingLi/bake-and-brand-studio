@@ -37,7 +37,7 @@ serve(async (req) => {
 
     console.log("Analyzing product image...");
 
-    // Step 1: Analyze the product image with GPT-5 vision
+    // Step 1: Analyze the product image with GPT-4o-mini vision
     const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -45,7 +45,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-2025-08-07",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "user",
@@ -63,7 +63,7 @@ serve(async (req) => {
             ],
           },
         ],
-        max_completion_tokens: 150,
+        max_tokens: 200,
       }),
     });
 
