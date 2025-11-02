@@ -7,6 +7,7 @@ export const logger = BRAINTRUST_API_KEY
   ? initLogger({
       projectName: "Bake-and-Brand-Studio",
       apiKey: BRAINTRUST_API_KEY,
+      asyncFlush: false, // Send logs immediately
     })
   : null;
 
@@ -15,6 +16,7 @@ console.log("Braintrust logger initialized:", {
   hasKey: !!BRAINTRUST_API_KEY,
   keyLength: BRAINTRUST_API_KEY?.length || 0,
   loggerExists: !!logger,
+  envKeys: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')),
 });
 
 // Track timing metrics
