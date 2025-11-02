@@ -80,7 +80,10 @@ export const logUserInteraction = async (
     hasSceneDescription?: boolean;
   }
 ) => {
+  console.log("logUserInteraction called:", { action, data, hasLogger: !!logger });
+  
   if (!logger) {
+    console.log("Logger is null, skipping logUserInteraction");
     return;
   }
 
@@ -95,6 +98,7 @@ export const logUserInteraction = async (
       },
       ...data,
     });
+    console.log("Successfully logged user interaction");
   } catch (error) {
     console.error("Failed to log user interaction:", error);
   }
