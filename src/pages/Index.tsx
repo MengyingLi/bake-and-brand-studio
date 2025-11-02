@@ -12,6 +12,7 @@ const Index = () => {
   const [sceneDescription, setSceneDescription] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState<"analyzing" | "generating" | null>(null);
 
   const handleClearImage = () => {
     setSelectedImage(null);
@@ -24,6 +25,7 @@ const Index = () => {
     }
 
     setIsGenerating(true);
+    setGenerationStep("analyzing");
     
     try {
       // Create canvas to convert image to proper format
@@ -63,6 +65,9 @@ const Index = () => {
         // Convert to PNG base64
         const base64Image = canvas.toDataURL('image/png');
         
+        // Simulate step transition for better UX
+        setTimeout(() => setGenerationStep("generating"), 3000);
+        
         const { data, error } = await supabase.functions.invoke("generate-food-variant", {
           body: {
             image: base64Image,
@@ -83,12 +88,14 @@ const Index = () => {
         }
         
         setIsGenerating(false);
+        setGenerationStep(null);
       };
       
       img.onerror = () => {
         URL.revokeObjectURL(objectUrl);
         toast.error("Failed to load image file");
         setIsGenerating(false);
+        setGenerationStep(null);
       };
       
       img.src = objectUrl;
@@ -96,6 +103,7 @@ const Index = () => {
       console.error("Generation error:", error);
       toast.error("Failed to generate variant. Please try again.");
       setIsGenerating(false);
+      setGenerationStep(null);
     }
   };
 
@@ -138,24 +146,33 @@ const Index = () => {
                   onChange={setSceneDescription}
                 />
 
-                <Button
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                  size="lg"
-                  className="w-full md:w-auto gap-2 text-lg py-6 px-8 shadow-lg hover:shadow-xl transition-all"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Wand2 className="h-5 w-5 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="h-5 w-5" />
-                      Generate Variant
-                    </>
+                <div className="space-y-4">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    size="lg"
+                    className="w-full md:w-auto gap-2 text-lg py-6 px-8 shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Wand2 className="h-5 w-5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-5 w-5" />
+                        Generate Variant
+                      </>
+                    )}
+                  </Button>
+                  
+                  {generationStep && (
+                    <div className="text-sm text-muted-foreground animate-pulse">
+                      {generationStep === "analyzing" && "⚡ Step 1/2: Analyzing product image..."}
+                      {generationStep === "generating" && "✨ Step 2/2: Generating new background..."}
+                    </div>
                   )}
-                </Button>
+                </div>
               </div>
             )}
           </section>

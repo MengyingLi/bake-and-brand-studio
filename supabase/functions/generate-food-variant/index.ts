@@ -35,9 +35,9 @@ serve(async (req) => {
       throw new Error("OPENAI_KEY is not configured");
     }
 
-    console.log("Analyzing product image...");
+    console.log("Step 1: Analyzing product image...");
 
-    // Step 1: Analyze the product image with GPT-4o-mini vision
+    // Step 1: Analyze the product image with GPT-4o-mini vision (simplified for speed)
     const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -52,7 +52,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Describe this food product in detail for image generation. Include: type of food, colors, textures, plating style, and any garnishes. Be specific and concise (max 100 words).",
+                text: "Briefly describe this food: type, colors, and plating (max 50 words).",
               },
               {
                 type: "image_url",
@@ -63,7 +63,7 @@ serve(async (req) => {
             ],
           },
         ],
-        max_tokens: 200,
+        max_tokens: 100,
       }),
     });
 
@@ -99,7 +99,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("Product analyzed. Generating variant with scene:", sceneDescription);
+    console.log("Step 2: Generating new image with scene:", sceneDescription);
 
     // Step 2: Generate new image with the product description + desired background
     const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
