@@ -57,6 +57,7 @@ export const logGenerationEvent = async (
     }
 
     // Check if image is a valid data URL (data:image/ prefix)
+    // Halloween agent uses exact format: data:image/jpeg;base64,${base64Image} or data:image/png;base64,${base64Image}
     const hasImage = !!data.image && data.image.startsWith('data:image/');
     const sceneDesc = data.sceneDescription || "default";
 
@@ -69,9 +70,18 @@ export const logGenerationEvent = async (
     };
     
     // Explicitly add image field if it exists (don't use spread operator)
+    // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
     if (hasImage && data.image) {
-      input.image = data.image;
-      console.log("✅ Including image in Braintrust log (length:", data.image.length, "chars)");
+      // Verify the format matches halloween agent pattern exactly
+      if (data.image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+        input.image = data.image;
+        console.log("✅ Including image in Braintrust log (format matches halloween agent, length:", data.image.length, "chars)");
+        console.log("   Image prefix:", data.image.substring(0, 30) + "...");
+      } else {
+        console.warn("⚠️ Image format doesn't match expected pattern:", data.image.substring(0, 50));
+        // Still include it, but log a warning
+        input.image = data.image;
+      }
     } else {
       console.log("⚠️ No image to include in log:", { hasImage, imageExists: !!data.image });
     }

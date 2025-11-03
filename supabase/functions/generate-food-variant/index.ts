@@ -89,8 +89,16 @@ serve(async (req) => {
         };
         
         // Explicitly add image field if it exists (don't use spread operator)
+        // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
         if (image && image.startsWith('data:image/')) {
-          input.image = image;
+          // Verify the format matches halloween agent pattern exactly
+          if (image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+            input.image = image;
+            console.log("✅ Including input image in Braintrust log (format matches halloween agent)");
+          } else {
+            console.warn("⚠️ Input image format doesn't match expected pattern");
+            input.image = image; // Still include it
+          }
         }
         
         await logger.log({
@@ -245,8 +253,15 @@ serve(async (req) => {
         };
         
         // Explicitly add input image if it exists
+        // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
         if (image && image.startsWith('data:image/')) {
-          input.image = image;
+          if (image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+            input.image = image;
+            console.log("✅ Including input image in complete log (format matches halloween agent)");
+          } else {
+            console.warn("⚠️ Input image format doesn't match expected pattern");
+            input.image = image; // Still include it
+          }
         }
         
         const output: any = {
@@ -254,9 +269,13 @@ serve(async (req) => {
           hasGeneratedImage: true,
         };
         
-        // Explicitly add generated image
-        if (imageUrl) {
+        // Explicitly add generated image - format: data:image/png;base64,[base64string]
+        if (imageUrl && imageUrl.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
           output.generatedImage = imageUrl;
+          console.log("✅ Including generated image in output (format matches halloween agent)");
+        } else if (imageUrl) {
+          console.warn("⚠️ Generated image format doesn't match expected pattern:", imageUrl.substring(0, 50));
+          output.generatedImage = imageUrl; // Still include it
         }
         
         await logger.log({
