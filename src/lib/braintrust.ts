@@ -123,9 +123,27 @@ export const logGenerationEvent = async (
       logEntry.error = data.error;
     }
 
+    // Log the structure we're sending (without the full image data for debugging)
+    console.log("📤 Sending to Braintrust:", {
+      event: logEntry.event,
+      type: logEntry.type,
+      inputKeys: Object.keys(logEntry.input),
+      hasImage: !!logEntry.input.image,
+      imageSize: logEntry.input.image ? `${(logEntry.input.image.length / 1024 / 1024).toFixed(2)}MB` : 'none',
+      outputKeys: logEntry.output ? Object.keys(logEntry.output) : [],
+      hasGeneratedImage: logEntry.output?.generatedImage ? true : false,
+    });
+
     await logger.log(logEntry);
+    
+    // Verify the log was sent successfully
+    console.log("✅ Log sent to Braintrust successfully");
   } catch (error) {
-    console.error("Failed to log to Braintrust:", error);
+    console.error("❌ Failed to log to Braintrust:", error);
+    // Check if it's a CORS error (common with client-side logging)
+    if (error instanceof Error && error.message.includes('CORS')) {
+      console.error("⚠️ CORS error detected - client-side logging may not work. Check Edge Function logs instead.");
+    }
   }
 };
 
