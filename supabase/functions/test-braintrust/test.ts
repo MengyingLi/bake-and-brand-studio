@@ -17,14 +17,14 @@ try {
   console.log("3a. Successfully imported via npm:");
 } catch (e) {
   importError = e;
-  console.log("3b. npm: import failed:", e.message);
+  console.log("3b. npm: import failed:", e instanceof Error ? e.message : String(e));
   
   try {
     // Try other import methods
     braintrust = await import("https://esm.sh/braintrust@0.4.8");
     console.log("3c. Successfully imported via esm.sh");
   } catch (e2) {
-    console.log("3d. esm.sh import also failed:", e2.message);
+    console.log("3d. esm.sh import also failed:", e2 instanceof Error ? e2.message : String(e2));
   }
 }
 
@@ -47,12 +47,14 @@ if (braintrust && BRAINTRUST_API_KEY) {
     console.log("7. Log event sent successfully");
     testResult = "SUCCESS: All steps completed";
   } catch (logError) {
-    testResult = `FAILED at logging: ${logError.message}\nStack: ${logError.stack}`;
+    const err = logError instanceof Error ? logError : new Error(String(logError));
+    testResult = `FAILED at logging: ${err.message}\nStack: ${err.stack}`;
     console.error("Logging error:", logError);
   }
 } else {
+  const err = importError instanceof Error ? importError : new Error(String(importError));
   testResult = importError 
-    ? `FAILED at import: ${importError.message}\nStack: ${importError.stack}`
+    ? `FAILED at import: ${err.message}\nStack: ${err.stack}`
     : "FAILED: Could not import SDK or missing API key";
 }
 
