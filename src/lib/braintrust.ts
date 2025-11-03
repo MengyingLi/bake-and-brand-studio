@@ -1,23 +1,9 @@
 import { initLogger } from "braintrust";
 
-// Initialize Braintrust logger
-const BRAINTRUST_API_KEY = import.meta.env.VITE_BRAINTRUST_API_KEY;
-
-export const logger = BRAINTRUST_API_KEY
-  ? initLogger({
-      projectName: "Bake-and-Brand-Studio",
-      apiKey: BRAINTRUST_API_KEY,
-      asyncFlush: false, // Send logs immediately
-    })
-  : null;
-
-// Debug logging
-console.log("Braintrust logger initialized:", {
-  hasKey: !!BRAINTRUST_API_KEY,
-  keyLength: BRAINTRUST_API_KEY?.length || 0,
-  loggerExists: !!logger,
-  envKeys: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')),
-});
+// Client-side Braintrust logging is disabled due to CORS issues
+// All logging happens server-side in Edge Function (see BRAINTRUST_SETUP.md)
+// DO NOT initialize logger on client-side - it will fail with CORS errors
+export const logger = null;
 
 // Track timing metrics
 const metrics: Record<string, number> = {};
@@ -156,7 +142,7 @@ export const logGenerationEvent = async (
   */
 };
 
-// Log user interactions
+// Log user interactions - disabled on client-side due to CORS
 export const logUserInteraction = async (
   action: "upload_image" | "enter_scene" | "download_image" | "clear_image",
   data?: {
@@ -164,26 +150,6 @@ export const logUserInteraction = async (
     hasSceneDescription?: boolean;
   }
 ) => {
-  console.log("logUserInteraction called:", { action, data, hasLogger: !!logger });
-  
-  if (!logger) {
-    console.log("Logger is null, skipping logUserInteraction");
-    return;
-  }
-
-  try {
-    await logger.log({
-      event: "user_interaction",
-      action,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        userAgent: navigator.userAgent,
-        url: window.location.href,
-      },
-      ...data,
-    } as any);
-    console.log("Successfully logged user interaction");
-  } catch (error) {
-    console.error("Failed to log user interaction:", error);
-  }
+  // Client-side logging disabled - all logging happens server-side in Edge Function
+  return;
 };
