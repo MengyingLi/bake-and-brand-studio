@@ -1,6 +1,14 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Import Braintrust SDK for Deno
+let braintrust: any = null;
+try {
+  braintrust = await import("https://esm.sh/braintrust@0.4.8");
+} catch (e) {
+  console.error("Failed to import Braintrust SDK:", e);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,8 +19,40 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Initialize Braintrust logger
+  let logger;
+  if (braintrust) {
+    const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
+    if (BRAINTRUST_API_KEY) {
+      logger = braintrust.initLogger({
+        projectName: "Bake-and-Brand-Studio",
+        apiKey: BRAINTRUST_API_KEY,
+        asyncFlush: false,
+      });
+    }
+  }
+
+  const startTime = Date.now();
+  
   try {
     const { image, sceneDescription } = await req.json();
+    
+    // Log start of generation
+    if (logger) {
+      await logger.log({
+        event: "image_generation",
+        type: "start",
+        input: {
+          hasImage: !!image,
+          hasSceneDescription: !!sceneDescription,
+          sceneDescription: sceneDescription || "default",
+        },
+        metadata: {
+          environment: "supabase-edge",
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
     
     if (!image) {
       return new Response(
@@ -138,6 +178,29 @@ serve(async (req) => {
     const imageUrl = `data:image/png;base64,${generatedImage}`;
 
     console.log("Variant generated successfully");
+    
+    // Log successful completion
+    if (logger) {
+      const duration = Date.now() - startTime;
+      await logger.log({
+        event: "image_generation",
+        type: "complete",
+        input: {
+          hasImage: !!image,
+          hasSceneDescription: !!sceneDescription,
+          sceneDescription: sceneDescription || "default",
+        },
+        output: {
+          success: true,
+          hasGeneratedImage: true,
+        },
+        metadata: {
+          environment: "supabase-edge",
+          timestamp: new Date().toISOString(),
+          duration,
+        },
+      });
+    }
 
     return new Response(
       JSON.stringify({ imageUrl }),
@@ -146,6 +209,22 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in generate-food-variant:", error);
     const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    
+    // Log error
+    if (logger) {
+      const duration = Date.now() - startTime;
+      await logger.log({
+        event: "image_generation",
+        type: "error",
+        error: errorMessage,
+        metadata: {
+          environment: "supabase-edge",
+          timestamp: new Date().toISOString(),
+          duration,
+        },
+      });
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }

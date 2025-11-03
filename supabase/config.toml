@@ -2,3 +2,6 @@ project_id = "tkxytufbaroztfgieubb"
 
 [functions.generate-food-variant]
 verify_jwt = false
+
+[functions.test-braintrust]
+verify_jwt = false
