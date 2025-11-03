@@ -5,8 +5,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 let braintrust: any = null;
 try {
   braintrust = await import("https://esm.sh/braintrust@0.4.8");
+  console.log("✅ Braintrust SDK imported successfully");
 } catch (e) {
-  console.error("Failed to import Braintrust SDK:", e);
+  console.error("❌ Failed to import Braintrust SDK:", e);
 }
 
 const corsHeaders = {
@@ -19,39 +20,85 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Only allow POST requests
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ 
+        error: "Method not allowed. This endpoint only accepts POST requests.",
+        usage: "Call this function from your app using supabase.functions.invoke()"
+      }),
+      { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, 
+        status: 405 
+      }
+    );
+  }
+
   // Initialize Braintrust logger
   let logger;
-  if (braintrust) {
-    const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
-    if (BRAINTRUST_API_KEY) {
+  const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
+  
+  console.log("🔍 Braintrust initialization check:", {
+    hasBraintrustSDK: !!braintrust,
+    hasAPIKey: !!BRAINTRUST_API_KEY,
+    apiKeyLength: BRAINTRUST_API_KEY?.length || 0,
+  });
+  
+  if (braintrust && BRAINTRUST_API_KEY) {
+    try {
       logger = braintrust.initLogger({
         projectName: "Bake-and-Brand-Studio",
         apiKey: BRAINTRUST_API_KEY,
         asyncFlush: false,
       });
+      console.log("✅ Braintrust logger initialized successfully");
+    } catch (e) {
+      console.error("❌ Failed to initialize Braintrust logger:", e);
     }
+  } else {
+    console.log("⚠️ Braintrust logging disabled:", {
+      reason: !braintrust ? "SDK not loaded" : "API key not found"
+    });
   }
 
   const startTime = Date.now();
   
   try {
-    const { image, sceneDescription } = await req.json();
+    // Parse request body with error handling
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("📥 Request body received successfully");
+    } catch (parseError) {
+      console.error("❌ Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid or empty request body" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    
+    const { image, sceneDescription } = requestBody;
     
     // Log start of generation
     if (logger) {
-      await logger.log({
-        event: "image_generation",
-        type: "start",
-        input: {
-          hasImage: !!image,
-          hasSceneDescription: !!sceneDescription,
-          sceneDescription: sceneDescription || "default",
-        },
-        metadata: {
-          environment: "supabase-edge",
-          timestamp: new Date().toISOString(),
-        },
-      });
+      try {
+        await logger.log({
+          event: "image_generation",
+          type: "start",
+          input: {
+            hasImage: !!image,
+            hasSceneDescription: !!sceneDescription,
+            sceneDescription: sceneDescription || "default",
+          },
+          metadata: {
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+          },
+        });
+        console.log("✅ Logged start event to Braintrust");
+      } catch (e) {
+        console.error("❌ Failed to log start event:", e);
+      }
     }
     
     if (!image) {
@@ -181,25 +228,30 @@ serve(async (req) => {
     
     // Log successful completion
     if (logger) {
-      const duration = Date.now() - startTime;
-      await logger.log({
-        event: "image_generation",
-        type: "complete",
-        input: {
-          hasImage: !!image,
-          hasSceneDescription: !!sceneDescription,
-          sceneDescription: sceneDescription || "default",
-        },
-        output: {
-          success: true,
-          hasGeneratedImage: true,
-        },
-        metadata: {
-          environment: "supabase-edge",
-          timestamp: new Date().toISOString(),
-          duration,
-        },
-      });
+      try {
+        const duration = Date.now() - startTime;
+        await logger.log({
+          event: "image_generation",
+          type: "complete",
+          input: {
+            hasImage: !!image,
+            hasSceneDescription: !!sceneDescription,
+            sceneDescription: sceneDescription || "default",
+          },
+          output: {
+            success: true,
+            hasGeneratedImage: true,
+          },
+          metadata: {
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+            duration,
+          },
+        });
+        console.log("✅ Logged complete event to Braintrust");
+      } catch (e) {
+        console.error("❌ Failed to log complete event:", e);
+      }
     }
 
     return new Response(
@@ -212,17 +264,22 @@ serve(async (req) => {
     
     // Log error
     if (logger) {
-      const duration = Date.now() - startTime;
-      await logger.log({
-        event: "image_generation",
-        type: "error",
-        error: errorMessage,
-        metadata: {
-          environment: "supabase-edge",
-          timestamp: new Date().toISOString(),
-          duration,
-        },
-      });
+      try {
+        const duration = Date.now() - startTime;
+        await logger.log({
+          event: "image_generation",
+          type: "error",
+          error: errorMessage,
+          metadata: {
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+            duration,
+          },
+        });
+        console.log("✅ Logged error event to Braintrust");
+      } catch (e) {
+        console.error("❌ Failed to log error event:", e);
+      }
     }
     
     return new Response(

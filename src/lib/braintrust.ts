@@ -131,4 +131,3 @@ export const logUserInteraction = async (
     console.error("Failed to log user interaction:", error);
   }
 };
-
