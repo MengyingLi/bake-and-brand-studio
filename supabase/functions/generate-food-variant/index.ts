@@ -50,7 +50,24 @@ serve(async (req) => {
   const startTime = Date.now();
   
   try {
-    const { image, sceneDescription } = await req.json();
+    // Parse request body with error handling
+    let requestBody;
+    try {
+      const text = await req.text();
+      console.log("📥 Request body received, length:", text.length);
+      if (!text || text.trim() === '') {
+        throw new Error("Empty request body");
+      }
+      requestBody = JSON.parse(text);
+    } catch (parseError) {
+      console.error("❌ Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid or empty request body" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    
+    const { image, sceneDescription } = requestBody;
     
     // Log start of generation
     if (logger) {
