@@ -89,6 +89,8 @@ serve(async (req) => {
             hasImage: !!image,
             hasSceneDescription: !!sceneDescription,
             sceneDescription: sceneDescription || "default",
+            // Include the actual base64 image data so Braintrust can display it
+            ...(image && image.startsWith('data:image/') && { image }),
           },
           metadata: {
             environment: "supabase-edge",
@@ -237,10 +239,14 @@ serve(async (req) => {
             hasImage: !!image,
             hasSceneDescription: !!sceneDescription,
             sceneDescription: sceneDescription || "default",
+            // Include the actual base64 input image data so Braintrust can display it
+            ...(image && image.startsWith('data:image/') && { image }),
           },
           output: {
             success: true,
             hasGeneratedImage: true,
+            // Include the actual base64 generated image data so Braintrust can display it
+            generatedImage: imageUrl,
           },
           metadata: {
             environment: "supabase-edge",

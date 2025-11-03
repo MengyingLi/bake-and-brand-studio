@@ -25,10 +25,11 @@ const metrics: Record<string, number> = {};
 export const logGenerationEvent = async (
   eventType: "start" | "complete" | "error",
   data: {
-    image?: string; // Image data URL or base64
+    image?: string; // Image data URL or base64 (input image)
     sceneDescription?: string;
     error?: string;
     success?: boolean;
+    generatedImage?: string; // Generated image data URL or base64 (output image)
   }
 ) => {
   if (!logger) {
@@ -60,6 +61,7 @@ export const logGenerationEvent = async (
     const sceneDesc = data.sceneDescription || "default";
 
     // Build log entry matching halloween agent pattern
+    // Include the actual base64 image data so Braintrust can display it
     const logEntry: any = {
       event: "image_generation",
       type: eventType,
@@ -67,6 +69,8 @@ export const logGenerationEvent = async (
         hasImage,
         hasSceneDescription: !!data.sceneDescription,
         sceneDescription: sceneDesc,
+        // Include the actual image data as base64 so it displays in Braintrust
+        ...(hasImage && { image: data.image }),
       },
       metadata: {
         environment: "browser",
@@ -86,6 +90,8 @@ export const logGenerationEvent = async (
       logEntry.output = {
         success: data.success ?? true,
         hasGeneratedImage: true,
+        // Include generated image if provided (from the response)
+        ...(data.generatedImage && { generatedImage: data.generatedImage }),
       };
     }
 

@@ -104,10 +104,12 @@ const Index = () => {
           toast.success("Variant generated successfully!");
           
           // Log successful completion (matching halloween agent pattern)
+          // Include both input and generated images as base64 so Braintrust can display them
           await logGenerationEvent("complete", {
             image: base64Image,
             sceneDescription: sceneDescription || undefined,
             success: true,
+            generatedImage: data.imageUrl, // Include the generated image as base64
           });
         } else {
           throw new Error("No image URL returned");
