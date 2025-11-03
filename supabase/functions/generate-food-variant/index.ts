@@ -82,6 +82,14 @@ serve(async (req) => {
     // Log start of generation
     if (logger) {
       try {
+        console.log("🔍 Debug - Input image details:", {
+          hasImage: !!image,
+          imageType: image ? typeof image : 'undefined',
+          imageLength: image ? image.length : 0,
+          imagePrefix: image ? image.substring(0, 50) : 'none',
+          startsWithDataImage: image ? image.startsWith('data:image/') : false,
+        });
+        
         const input: any = {
           hasImage: !!image,
           hasSceneDescription: !!sceneDescription,
@@ -91,14 +99,22 @@ serve(async (req) => {
         // Explicitly add image field if it exists (don't use spread operator)
         // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
         if (image && image.startsWith('data:image/')) {
+          const regexMatch = image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/);
+          console.log("🔍 Debug - Image regex check:", {
+            matched: !!regexMatch,
+            matchedGroups: regexMatch,
+          });
+          
           // Verify the format matches halloween agent pattern exactly
-          if (image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+          if (regexMatch) {
             input.image = image;
             console.log("✅ Including input image in Braintrust log (format matches halloween agent)");
           } else {
             console.warn("⚠️ Input image format doesn't match expected pattern");
             input.image = image; // Still include it
           }
+        } else {
+          console.warn("⚠️ Image doesn't start with 'data:image/' or is missing");
         }
         
         await logger.log({
@@ -246,6 +262,18 @@ serve(async (req) => {
       try {
         const duration = Date.now() - startTime;
         
+        console.log("🔍 Debug - Complete log - Input image details:", {
+          hasImage: !!image,
+          imageLength: image ? image.length : 0,
+          imagePrefix: image ? image.substring(0, 50) : 'none',
+        });
+        
+        console.log("🔍 Debug - Complete log - Output image details:", {
+          hasImageUrl: !!imageUrl,
+          imageUrlLength: imageUrl ? imageUrl.length : 0,
+          imageUrlPrefix: imageUrl ? imageUrl.substring(0, 50) : 'none',
+        });
+        
         const input: any = {
           hasImage: !!image,
           hasSceneDescription: !!sceneDescription,
@@ -255,13 +283,20 @@ serve(async (req) => {
         // Explicitly add input image if it exists
         // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
         if (image && image.startsWith('data:image/')) {
-          if (image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+          const regexMatch = image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/);
+          console.log("🔍 Debug - Complete log - Input image regex check:", {
+            matched: !!regexMatch,
+          });
+          
+          if (regexMatch) {
             input.image = image;
             console.log("✅ Including input image in complete log (format matches halloween agent)");
           } else {
             console.warn("⚠️ Input image format doesn't match expected pattern");
             input.image = image; // Still include it
           }
+        } else {
+          console.warn("⚠️ Input image doesn't start with 'data:image/' or is missing");
         }
         
         const output: any = {
@@ -270,12 +305,21 @@ serve(async (req) => {
         };
         
         // Explicitly add generated image - format: data:image/png;base64,[base64string]
-        if (imageUrl && imageUrl.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
-          output.generatedImage = imageUrl;
-          console.log("✅ Including generated image in output (format matches halloween agent)");
-        } else if (imageUrl) {
-          console.warn("⚠️ Generated image format doesn't match expected pattern:", imageUrl.substring(0, 50));
-          output.generatedImage = imageUrl; // Still include it
+        if (imageUrl) {
+          const regexMatch = imageUrl.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/);
+          console.log("🔍 Debug - Complete log - Output image regex check:", {
+            matched: !!regexMatch,
+          });
+          
+          if (regexMatch) {
+            output.generatedImage = imageUrl;
+            console.log("✅ Including generated image in output (format matches halloween agent)");
+          } else {
+            console.warn("⚠️ Generated image format doesn't match expected pattern:", imageUrl.substring(0, 50));
+            output.generatedImage = imageUrl; // Still include it
+          }
+        } else {
+          console.warn("⚠️ Generated image is missing");
         }
         
         await logger.log({
