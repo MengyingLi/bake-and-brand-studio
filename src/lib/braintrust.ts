@@ -32,6 +32,14 @@ export const logGenerationEvent = async (
     generatedImage?: string; // Generated image data URL or base64 (output image)
   }
 ) => {
+  // Client-side logging is disabled due to CORS issues
+  // All logging happens server-side in the Edge Function
+  // See BRAINTRUST_SETUP.md for details
+  console.log("⚠️ Client-side Braintrust logging disabled (CORS blocked). Logging happens server-side in Edge Function.");
+  return;
+  
+  // Code below is disabled - keeping for reference
+  /*
   if (!logger) {
     console.log("Braintrust logging disabled - no API key configured");
     return;
@@ -145,6 +153,7 @@ export const logGenerationEvent = async (
       console.error("⚠️ CORS error detected - client-side logging may not work. Check Edge Function logs instead.");
     }
   }
+  */
 };
 
 // Log user interactions
