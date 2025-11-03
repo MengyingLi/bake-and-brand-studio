@@ -1,27 +1,7 @@
-import { initLogger } from "braintrust";
+// Braintrust logging is handled server-side in the edge function
+// Client-side logging doesn't work due to CORS restrictions
 
-// Initialize Braintrust logger
-const BRAINTRUST_API_KEY = import.meta.env.VITE_BRAINTRUST_API_KEY;
-
-export const logger = BRAINTRUST_API_KEY
-  ? initLogger({
-      projectName: "Bake-and-Brand-Studio",
-      apiKey: BRAINTRUST_API_KEY,
-      asyncFlush: false, // Send logs immediately
-    })
-  : null;
-
-// Debug logging
-console.log("Braintrust logger initialized:", {
-  hasKey: !!BRAINTRUST_API_KEY,
-  keyLength: BRAINTRUST_API_KEY?.length || 0,
-  loggerExists: !!logger,
-  envKeys: Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')),
-});
-
-// Track timing metrics
-const metrics: Record<string, number> = {};
-
+// These are no-op functions to maintain compatibility
 export const logGenerationEvent = async (
   eventType: "start" | "complete" | "error",
   data: {
@@ -34,45 +14,9 @@ export const logGenerationEvent = async (
     duration?: number;
   }
 ) => {
-  if (!logger) {
-    console.log("Braintrust logging disabled - no API key configured");
-    return;
-  }
-
-  try {
-    // Track timing for this generation
-    const timestamp = Date.now();
-    const trackingKey = `${eventType}_${timestamp}`;
-    
-    if (eventType === "start") {
-      metrics[trackingKey] = timestamp;
-    } else if (eventType === "complete" || eventType === "error") {
-      // Calculate duration if this is a completion
-      const startTimes = Object.keys(metrics).filter(k => k.startsWith("start_"));
-      if (startTimes.length > 0) {
-        const latestStart = startTimes[startTimes.length - 1];
-        const duration = timestamp - metrics[latestStart];
-        data.duration = duration;
-        delete metrics[latestStart];
-      }
-    }
-
-    await logger.log({
-      event: "image_generation",
-      type: eventType,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        userAgent: navigator.userAgent,
-        url: window.location.href,
-      },
-      ...data,
-    });
-  } catch (error) {
-    console.error("Failed to log to Braintrust:", error);
-  }
+  console.log("Client-side Braintrust logging disabled (handled server-side)", { eventType, data });
 };
 
-// Log user interactions
 export const logUserInteraction = async (
   action: "upload_image" | "enter_scene" | "download_image" | "clear_image",
   data?: {
@@ -80,27 +24,6 @@ export const logUserInteraction = async (
     hasSceneDescription?: boolean;
   }
 ) => {
-  console.log("logUserInteraction called:", { action, data, hasLogger: !!logger });
-  
-  if (!logger) {
-    console.log("Logger is null, skipping logUserInteraction");
-    return;
-  }
-
-  try {
-    await logger.log({
-      event: "user_interaction",
-      action,
-      timestamp: new Date().toISOString(),
-      metadata: {
-        userAgent: navigator.userAgent,
-        url: window.location.href,
-      },
-      ...data,
-    });
-    console.log("Successfully logged user interaction");
-  } catch (error) {
-    console.error("Failed to log user interaction:", error);
-  }
+  console.log("Client-side Braintrust logging disabled (handled server-side)", { action, data });
 };
 
