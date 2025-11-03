@@ -62,16 +62,24 @@ export const logGenerationEvent = async (
 
     // Build log entry matching halloween agent pattern
     // Include the actual base64 image data so Braintrust can display it
+    const input: any = {
+      hasImage,
+      hasSceneDescription: !!data.sceneDescription,
+      sceneDescription: sceneDesc,
+    };
+    
+    // Explicitly add image field if it exists (don't use spread operator)
+    if (hasImage && data.image) {
+      input.image = data.image;
+      console.log("✅ Including image in Braintrust log (length:", data.image.length, "chars)");
+    } else {
+      console.log("⚠️ No image to include in log:", { hasImage, imageExists: !!data.image });
+    }
+
     const logEntry: any = {
       event: "image_generation",
       type: eventType,
-      input: {
-        hasImage,
-        hasSceneDescription: !!data.sceneDescription,
-        sceneDescription: sceneDesc,
-        // Include the actual image data as base64 so it displays in Braintrust
-        ...(hasImage && { image: data.image }),
-      },
+      input,
       metadata: {
         environment: "browser",
         timestamp: new Date().toISOString(),
@@ -87,12 +95,17 @@ export const logGenerationEvent = async (
 
     // Add output for complete events
     if (eventType === "complete") {
-      logEntry.output = {
+      const output: any = {
         success: data.success ?? true,
         hasGeneratedImage: true,
-        // Include generated image if provided (from the response)
-        ...(data.generatedImage && { generatedImage: data.generatedImage }),
       };
+      
+      // Explicitly add generated image if it exists
+      if (data.generatedImage) {
+        output.generatedImage = data.generatedImage;
+      }
+      
+      logEntry.output = output;
     }
 
     // Add error for error events

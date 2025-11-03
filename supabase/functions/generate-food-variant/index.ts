@@ -82,16 +82,21 @@ serve(async (req) => {
     // Log start of generation
     if (logger) {
       try {
+        const input: any = {
+          hasImage: !!image,
+          hasSceneDescription: !!sceneDescription,
+          sceneDescription: sceneDescription || "default",
+        };
+        
+        // Explicitly add image field if it exists (don't use spread operator)
+        if (image && image.startsWith('data:image/')) {
+          input.image = image;
+        }
+        
         await logger.log({
           event: "image_generation",
           type: "start",
-          input: {
-            hasImage: !!image,
-            hasSceneDescription: !!sceneDescription,
-            sceneDescription: sceneDescription || "default",
-            // Include the actual base64 image data so Braintrust can display it
-            ...(image && image.startsWith('data:image/') && { image }),
-          },
+          input,
           metadata: {
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
@@ -232,22 +237,33 @@ serve(async (req) => {
     if (logger) {
       try {
         const duration = Date.now() - startTime;
+        
+        const input: any = {
+          hasImage: !!image,
+          hasSceneDescription: !!sceneDescription,
+          sceneDescription: sceneDescription || "default",
+        };
+        
+        // Explicitly add input image if it exists
+        if (image && image.startsWith('data:image/')) {
+          input.image = image;
+        }
+        
+        const output: any = {
+          success: true,
+          hasGeneratedImage: true,
+        };
+        
+        // Explicitly add generated image
+        if (imageUrl) {
+          output.generatedImage = imageUrl;
+        }
+        
         await logger.log({
           event: "image_generation",
           type: "complete",
-          input: {
-            hasImage: !!image,
-            hasSceneDescription: !!sceneDescription,
-            sceneDescription: sceneDescription || "default",
-            // Include the actual base64 input image data so Braintrust can display it
-            ...(image && image.startsWith('data:image/') && { image }),
-          },
-          output: {
-            success: true,
-            hasGeneratedImage: true,
-            // Include the actual base64 generated image data so Braintrust can display it
-            generatedImage: imageUrl,
-          },
+          input,
+          output,
           metadata: {
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
