@@ -20,6 +20,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Only allow POST requests
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ 
+        error: "Method not allowed. This endpoint only accepts POST requests.",
+        usage: "Call this function from your app using supabase.functions.invoke()"
+      }),
+      { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, 
+        status: 405 
+      }
+    );
+  }
+
   // Initialize Braintrust logger
   let logger;
   const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
