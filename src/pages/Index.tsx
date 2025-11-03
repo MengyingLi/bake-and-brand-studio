@@ -38,13 +38,6 @@ const Index = () => {
     setIsGenerating(true);
     setGenerationStep("analyzing");
     
-    // Log start of generation
-    await logGenerationEvent("start", {
-      imageUploaded: true,
-      sceneDescription: sceneDescription || undefined,
-      step: "analyzing",
-    });
-    
     try {
       // Create canvas to convert image to proper format
       const img = new Image();
@@ -83,12 +76,15 @@ const Index = () => {
         // Convert to PNG base64
         const base64Image = canvas.toDataURL('image/png');
         
+        // Log start of generation (after image conversion, matching halloween agent pattern)
+        await logGenerationEvent("start", {
+          image: base64Image,
+          sceneDescription: sceneDescription || undefined,
+        });
+        
         // Simulate step transition for better UX
         setTimeout(() => {
           setGenerationStep("generating");
-          logGenerationEvent("start", {
-            step: "generating",
-          });
         }, 3000);
         
         const { data, error } = await supabase.functions.invoke("generate-food-variant", {
@@ -107,10 +103,11 @@ const Index = () => {
           setGeneratedImages((prev) => [...prev, data.imageUrl]);
           toast.success("Variant generated successfully!");
           
-          // Log successful completion
+          // Log successful completion (matching halloween agent pattern)
           await logGenerationEvent("complete", {
-            success: true,
+            image: base64Image,
             sceneDescription: sceneDescription || undefined,
+            success: true,
           });
         } else {
           throw new Error("No image URL returned");
@@ -126,7 +123,7 @@ const Index = () => {
         setIsGenerating(false);
         setGenerationStep(null);
         
-        // Log error
+        // Log error (matching halloween agent pattern)
         await logGenerationEvent("error", {
           error: "Failed to load image file",
         });
@@ -139,7 +136,7 @@ const Index = () => {
       setIsGenerating(false);
       setGenerationStep(null);
       
-      // Log error
+      // Log error (matching halloween agent pattern)
       await logGenerationEvent("error", {
         error: error instanceof Error ? error.message : "Unknown error",
       });

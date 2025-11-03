@@ -25,13 +25,10 @@ const metrics: Record<string, number> = {};
 export const logGenerationEvent = async (
   eventType: "start" | "complete" | "error",
   data: {
-    imageUploaded?: boolean;
+    image?: string; // Image data URL or base64
     sceneDescription?: string;
-    step?: "analyzing" | "generating";
     error?: string;
     success?: boolean;
-    imageSize?: number;
-    duration?: number;
   }
 ) => {
   if (!logger) {
@@ -40,33 +37,64 @@ export const logGenerationEvent = async (
   }
 
   try {
-    // Track timing for this generation
-    const timestamp = Date.now();
-    const trackingKey = `${eventType}_${timestamp}`;
+    const startTime = Date.now();
+    const trackingKey = `start_${startTime}`;
     
     if (eventType === "start") {
-      metrics[trackingKey] = timestamp;
-    } else if (eventType === "complete" || eventType === "error") {
-      // Calculate duration if this is a completion
+      metrics[trackingKey] = startTime;
+    }
+
+    // Calculate duration for complete/error events
+    let duration: number | undefined;
+    if (eventType === "complete" || eventType === "error") {
       const startTimes = Object.keys(metrics).filter(k => k.startsWith("start_"));
       if (startTimes.length > 0) {
         const latestStart = startTimes[startTimes.length - 1];
-        const duration = timestamp - metrics[latestStart];
-        data.duration = duration;
+        duration = startTime - metrics[latestStart];
         delete metrics[latestStart];
       }
     }
 
-    await logger.log({
+    // Check if image is a valid data URL (data:image/ prefix)
+    const hasImage = !!data.image && data.image.startsWith('data:image/');
+    const sceneDesc = data.sceneDescription || "default";
+
+    // Build log entry matching halloween agent pattern
+    const logEntry: any = {
       event: "image_generation",
       type: eventType,
-      timestamp: new Date().toISOString(),
+      input: {
+        hasImage,
+        hasSceneDescription: !!data.sceneDescription,
+        sceneDescription: sceneDesc,
+      },
       metadata: {
+        environment: "browser",
+        timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         url: window.location.href,
       },
-      ...data,
-    });
+    };
+
+    // Add duration to metadata for complete/error events
+    if (duration !== undefined) {
+      logEntry.metadata.duration = duration;
+    }
+
+    // Add output for complete events
+    if (eventType === "complete") {
+      logEntry.output = {
+        success: data.success ?? true,
+        hasGeneratedImage: true,
+      };
+    }
+
+    // Add error for error events
+    if (eventType === "error" && data.error) {
+      logEntry.error = data.error;
+    }
+
+    await logger.log(logEntry);
   } catch (error) {
     console.error("Failed to log to Braintrust:", error);
   }
@@ -97,7 +125,7 @@ export const logUserInteraction = async (
         url: window.location.href,
       },
       ...data,
-    });
+    } as any);
     console.log("Successfully logged user interaction");
   } catch (error) {
     console.error("Failed to log user interaction:", error);
