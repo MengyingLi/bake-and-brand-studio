@@ -1,34 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createCanvas, loadImage } from "https://deno.land/x/canvas@v1.4.1/mod.ts";
 
-// Helper function to compress and resize base64 image
-async function compressImageForLogging(dataUrl: string, maxWidth = 512): Promise<string> {
-  try {
-    // Load the image
-    const img = await loadImage(dataUrl);
-    
-    // Calculate new dimensions while maintaining aspect ratio
-    const aspectRatio = img.height() / img.width();
-    const newWidth = Math.min(maxWidth, img.width());
-    const newHeight = Math.floor(newWidth * aspectRatio);
-    
-    // Create canvas and resize
-    const canvas = createCanvas(newWidth, newHeight);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, newWidth, newHeight);
-    
-    // Convert to JPEG with compression (quality 0.6)
-    const compressed = canvas.toDataURL("image/jpeg", 0.6);
-    
-    console.log(`🗜️ Image compressed: ${dataUrl.length} → ${compressed.length} bytes (${Math.round(compressed.length / dataUrl.length * 100)}%)`);
-    
-    return compressed;
-  } catch (e) {
-    console.error("❌ Failed to compress image:", e);
-    // Return original if compression fails
-    return dataUrl;
-  }
+// Helper function to create a thumbnail preview of base64 image for logging
+// Avoids heavy image processing - just truncates to save on payload size
+function createThumbnailPreview(dataUrl: string): string {
+  return dataUrl.substring(0, 200) + "...[truncated for payload size]";
 }
 
 // Import Braintrust SDK for Deno
@@ -126,11 +102,11 @@ serve(async (req) => {
           sceneDescription: sceneDescription || "default",
         };
         
-        // Compress and add image field if it exists
+        // Add image preview if it exists
         if (image && image.startsWith('data:image/')) {
-          const compressedImage = await compressImageForLogging(image, 512);
-          input.image = compressedImage;
-          console.log("✅ Including compressed input image in Braintrust log");
+          input.imagePreview = createThumbnailPreview(image);
+          input.imageSize = image.length;
+          console.log("✅ Including input image preview in Braintrust log");
         } else {
           console.warn("⚠️ Image doesn't start with 'data:image/' or is missing");
         }
@@ -298,11 +274,11 @@ serve(async (req) => {
           sceneDescription: sceneDescription || "default",
         };
         
-        // Compress and add input image if it exists
+        // Add input image preview if it exists
         if (image && image.startsWith('data:image/')) {
-          const compressedInput = await compressImageForLogging(image, 512);
-          input.image = compressedInput;
-          console.log("✅ Including compressed input image in complete log");
+          input.imagePreview = createThumbnailPreview(image);
+          input.imageSize = image.length;
+          console.log("✅ Including input image preview in complete log");
         } else {
           console.warn("⚠️ Input image doesn't start with 'data:image/' or is missing");
         }
@@ -312,11 +288,11 @@ serve(async (req) => {
           hasGeneratedImage: true,
         };
         
-        // Compress and add generated image
+        // Add generated image preview
         if (imageUrl) {
-          const compressedOutput = await compressImageForLogging(imageUrl, 512);
-          output.generatedImage = compressedOutput;
-          console.log("✅ Including compressed generated image in output");
+          output.generatedImagePreview = createThumbnailPreview(imageUrl);
+          output.generatedImageSize = imageUrl.length;
+          console.log("✅ Including generated image preview in output");
         } else {
           console.warn("⚠️ Generated image is missing");
         }
