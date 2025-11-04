@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     // Initialize Braintrust logger
     let logger;
     const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
-    console.log("🔍 Braintrust available:", !!braintrust, "API key set:", !!BRAINTRUST_API_KEY);
+    console.info("[Braintrust] SDK available:", !!braintrust, "| API key set:", !!BRAINTRUST_API_KEY);
     if (braintrust && BRAINTRUST_API_KEY) {
       try {
         logger = braintrust.initLogger({
@@ -31,12 +31,12 @@ Deno.serve(async (req) => {
           apiKey: BRAINTRUST_API_KEY,
           asyncFlush: false,
         });
-        console.log("✅ Braintrust logger initialized successfully");
+        console.info("[Braintrust] Logger initialized successfully");
       } catch (e) {
-        console.error("❌ Failed to init Braintrust logger:", e);
+        console.error("[Braintrust] Failed to init logger:", e);
       }
     } else {
-      console.log("⚠️ Skipping Braintrust - SDK or API key missing");
+      console.info("[Braintrust] Skipping - SDK or API key missing");
     }
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -95,7 +95,7 @@ Return ONLY valid JSON in this exact format:
     // Log start event
     if (logger) {
       try {
-        console.log("📤 Sending Braintrust start event...");
+        console.info("[Braintrust] Sending start event...");
         await logger.log({
           event: "brainstorm_recipe",
           type: "start",
@@ -113,9 +113,9 @@ Return ONLY valid JSON in this exact format:
             timestamp: new Date().toISOString(),
           },
         });
-        console.log("✅ Braintrust start event sent");
+        console.info("[Braintrust] Start event sent successfully");
       } catch (e) {
-        console.error("❌ Failed to send Braintrust start event:", e);
+        console.error("[Braintrust] Failed to send start event:", e);
       }
     }
 
@@ -249,7 +249,7 @@ Return ONLY valid JSON in this exact format:
     // Log complete event with full text payload for Braintrust visibility
     if (logger) {
       try {
-        console.log("📤 Sending Braintrust complete event...");
+        console.info("[Braintrust] Sending complete event...");
         const duration = Date.now() - startTime;
         await logger.log({
           event: "brainstorm_recipe",
@@ -275,9 +275,9 @@ Return ONLY valid JSON in this exact format:
             duration,
           },
         });
-        console.log("✅ Braintrust complete event sent");
+        console.info("[Braintrust] Complete event sent successfully");
       } catch (e) {
-        console.error("❌ Failed to send Braintrust complete event:", e);
+        console.error("[Braintrust] Failed to send complete event:", e);
       }
     }
 
