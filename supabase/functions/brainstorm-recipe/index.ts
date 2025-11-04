@@ -102,12 +102,10 @@ Return ONLY valid JSON in this exact format:
 
       // Populate root span Input/Metadata for trace table visibility
       rootSpan.log({
-        input: {
-          messages: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userContent }
-          ]
-        },
+        input: [
+          { role: "system", content: systemContent },
+          { role: "user", content: userContent }
+        ],
         metadata: {
           month,
           season,
