@@ -73,8 +73,8 @@ const Index = () => {
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Convert to PNG base64
-        const base64Image = canvas.toDataURL('image/png');
+        // Convert to JPEG base64 with 85% quality to match output format
+        const base64Image = canvas.toDataURL('image/jpeg', 0.85);
         
         // Log start of generation (after image conversion, matching halloween agent pattern)
         await logGenerationEvent("start", {
