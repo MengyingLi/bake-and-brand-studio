@@ -294,9 +294,16 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "error",
           error: error instanceof Error ? error.message : String(error),
+          input: {
+            userPrompt: typeof userContent === "string" ? userContent : undefined,
+            month: typeof month === "string" ? month : undefined,
+            season: typeof season === "string" ? season : undefined,
+            ingredients: Array.isArray(ingredients) ? ingredients : undefined,
+          },
           metadata: {
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
+            systemPrompt: typeof systemContent === "string" ? systemContent : undefined,
           },
         });
       }
