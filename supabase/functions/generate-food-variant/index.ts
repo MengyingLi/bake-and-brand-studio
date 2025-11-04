@@ -1,11 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-// Helper function to create a thumbnail preview of base64 image for logging
-// Avoids heavy image processing - just truncates to save on payload size
-function createThumbnailPreview(dataUrl: string): string {
-  return dataUrl.substring(0, 200) + "...[truncated for payload size]";
-}
 
 // Import Braintrust SDK for Deno
 let braintrust: any = null;
@@ -102,11 +97,10 @@ serve(async (req) => {
           sceneDescription: sceneDescription || "default",
         };
         
-        // Add image preview if it exists
+        // Add image field if it exists
         if (image && image.startsWith('data:image/')) {
-          input.imagePreview = createThumbnailPreview(image);
-          input.imageSize = image.length;
-          console.log("✅ Including input image preview in Braintrust log");
+          input.image = image;
+          console.log("✅ Including full input image in Braintrust log");
         } else {
           console.warn("⚠️ Image doesn't start with 'data:image/' or is missing");
         }
@@ -274,11 +268,10 @@ serve(async (req) => {
           sceneDescription: sceneDescription || "default",
         };
         
-        // Add input image preview if it exists
+        // Add input image if it exists
         if (image && image.startsWith('data:image/')) {
-          input.imagePreview = createThumbnailPreview(image);
-          input.imageSize = image.length;
-          console.log("✅ Including input image preview in complete log");
+          input.image = image;
+          console.log("✅ Including full input image in complete log");
         } else {
           console.warn("⚠️ Input image doesn't start with 'data:image/' or is missing");
         }
@@ -288,11 +281,10 @@ serve(async (req) => {
           hasGeneratedImage: true,
         };
         
-        // Add generated image preview
+        // Add generated image
         if (imageUrl) {
-          output.generatedImagePreview = createThumbnailPreview(imageUrl);
-          output.generatedImageSize = imageUrl.length;
-          console.log("✅ Including generated image preview in output");
+          output.generatedImage = imageUrl;
+          console.log("✅ Including full generated image in output");
         } else {
           console.warn("⚠️ Generated image is missing");
         }
