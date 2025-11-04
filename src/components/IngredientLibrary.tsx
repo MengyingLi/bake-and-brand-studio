@@ -11,9 +11,13 @@ const COMMON_INGREDIENTS = [
 
 interface IngredientLibraryProps {
   onDragStart: (ingredient: string) => void;
+  selectedIngredients: string[];
 }
 
-export const IngredientLibrary = ({ onDragStart }: IngredientLibraryProps) => {
+export const IngredientLibrary = ({ onDragStart, selectedIngredients }: IngredientLibraryProps) => {
+  const availableIngredients = COMMON_INGREDIENTS.filter(
+    (ingredient) => !selectedIngredients.includes(ingredient)
+  );
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -27,7 +31,7 @@ export const IngredientLibrary = ({ onDragStart }: IngredientLibraryProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto">
-          {COMMON_INGREDIENTS.map((ingredient) => (
+          {availableIngredients.map((ingredient) => (
             <Badge
               key={ingredient}
               variant="outline"

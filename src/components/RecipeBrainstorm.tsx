@@ -103,14 +103,14 @@ export const RecipeBrainstorm = () => {
       <div className="grid md:grid-cols-[300px_1fr] gap-6 max-w-5xl mx-auto">
         {/* Ingredient Library - Left Side */}
         <div className="hidden md:block">
-          <IngredientLibrary onDragStart={handleDragStart} />
+          <IngredientLibrary onDragStart={handleDragStart} selectedIngredients={ingredients} />
         </div>
 
         {/* Main Area - Right Side */}
         <div className="space-y-4">
           {/* Mobile: Show ingredient library at top */}
           <div className="md:hidden mb-4">
-            <IngredientLibrary onDragStart={handleDragStart} />
+            <IngredientLibrary onDragStart={handleDragStart} selectedIngredients={ingredients} />
           </div>
 
           <Card
