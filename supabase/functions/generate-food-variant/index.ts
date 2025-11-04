@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+
 // Import Braintrust SDK for Deno
 let braintrust: any = null;
 try {
@@ -82,23 +83,26 @@ serve(async (req) => {
     // Log start of generation
     if (logger) {
       try {
+        console.log("🔍 Debug - Input image details:", {
+          hasImage: !!image,
+          imageType: image ? typeof image : 'undefined',
+          imageLength: image ? image.length : 0,
+          imagePrefix: image ? image.substring(0, 50) : 'none',
+          startsWithDataImage: image ? image.startsWith('data:image/') : false,
+        });
+        
         const input: any = {
           hasImage: !!image,
           hasSceneDescription: !!sceneDescription,
           sceneDescription: sceneDescription || "default",
         };
         
-        // Explicitly add image field if it exists (don't use spread operator)
-        // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
+        // Add image field if it exists
         if (image && image.startsWith('data:image/')) {
-          // Verify the format matches halloween agent pattern exactly
-          if (image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
-            input.image = image;
-            console.log("✅ Including input image in Braintrust log (format matches halloween agent)");
-          } else {
-            console.warn("⚠️ Input image format doesn't match expected pattern");
-            input.image = image; // Still include it
-          }
+          input.image = image;
+          console.log("✅ Including full input image in Braintrust log");
+        } else {
+          console.warn("⚠️ Image doesn't start with 'data:image/' or is missing");
         }
         
         await logger.log({
@@ -137,10 +141,10 @@ serve(async (req) => {
       throw new Error("OPENAI_KEY is not configured");
     }
 
-    console.log("Step 1: Analyzing product image...");
+    console.log("Analyzing uploaded image...");
 
-    // Step 1: Analyze the product image with GPT-4o-mini vision (simplified for speed)
-    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // First, analyze the uploaded image to understand what it contains
+    const visionResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -154,7 +158,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Briefly describe this food: type, colors, and plating (max 50 words).",
+                text: "Describe this food product in detail. Focus on: what the product is, its colors, textures, shape, and any distinctive features. Be specific and concise.",
               },
               {
                 type: "image_url",
@@ -165,47 +169,25 @@ serve(async (req) => {
             ],
           },
         ],
-        max_tokens: 100,
+        max_tokens: 150,
       }),
     });
 
-    const analysisText = await analysisResponse.text();
-    console.log("Analysis response status:", analysisResponse.status);
-    console.log("Analysis response body:", analysisText);
-
-    if (!analysisResponse.ok) {
-      return new Response(
-        JSON.stringify({ error: `Analysis failed: ${analysisResponse.status} - ${analysisText}` }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
+    if (!visionResponse.ok) {
+      const errorText = await visionResponse.text();
+      console.error("Vision API error:", visionResponse.status, errorText);
+      throw new Error(`Failed to analyze image: ${visionResponse.status}`);
     }
 
-    let analysisData;
-    try {
-      analysisData = JSON.parse(analysisText);
-    } catch (e) {
-      console.error("Failed to parse analysis response:", e);
-      return new Response(
-        JSON.stringify({ error: "Invalid response from OpenAI" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
+    const visionData = await visionResponse.json();
+    const productDescription = visionData.choices[0].message.content;
 
-    const productDescription = analysisData.choices?.[0]?.message?.content;
+    console.log("Product identified:", productDescription);
+    console.log("Generating new image with scene:", sceneDescription);
 
-    if (!productDescription) {
-      console.error("No product description in response:", analysisText);
-      return new Response(
-        JSON.stringify({ error: "Failed to analyze product image - no description returned" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-
-    console.log("Step 2: Generating new image with scene:", sceneDescription);
-
-    // Step 2: Generate new image with the product description + desired background
+    // Generate new image with the desired background/scene
     const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
-    const fullPrompt = `Professional food photography: ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image.`;
+    const fullPrompt = `Professional food photography of ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image with beautiful lighting and composition.`;
 
     const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
@@ -218,8 +200,9 @@ serve(async (req) => {
         prompt: fullPrompt,
         n: 1,
         size: "1024x1024",
-        quality: "high",
-        output_format: "png",
+        quality: "medium",
+        output_format: "jpeg",
+        output_compression: 75,
       }),
     });
 
@@ -237,7 +220,7 @@ serve(async (req) => {
     }
 
     // Convert base64 to data URL
-    const imageUrl = `data:image/png;base64,${generatedImage}`;
+    const imageUrl = `data:image/jpeg;base64,${generatedImage}`;
 
     console.log("Variant generated successfully");
     
@@ -246,22 +229,30 @@ serve(async (req) => {
       try {
         const duration = Date.now() - startTime;
         
+        console.log("🔍 Debug - Complete log - Input image details:", {
+          hasImage: !!image,
+          imageLength: image ? image.length : 0,
+          imagePrefix: image ? image.substring(0, 50) : 'none',
+        });
+        
+        console.log("🔍 Debug - Complete log - Output image details:", {
+          hasImageUrl: !!imageUrl,
+          imageUrlLength: imageUrl ? imageUrl.length : 0,
+          imageUrlPrefix: imageUrl ? imageUrl.substring(0, 50) : 'none',
+        });
+        
         const input: any = {
           hasImage: !!image,
           hasSceneDescription: !!sceneDescription,
           sceneDescription: sceneDescription || "default",
         };
         
-        // Explicitly add input image if it exists
-        // Ensure exact format matches halloween agent: data:image/[type];base64,[base64string]
+        // Add input image if it exists
         if (image && image.startsWith('data:image/')) {
-          if (image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
-            input.image = image;
-            console.log("✅ Including input image in complete log (format matches halloween agent)");
-          } else {
-            console.warn("⚠️ Input image format doesn't match expected pattern");
-            input.image = image; // Still include it
-          }
+          input.image = image;
+          console.log("✅ Including full input image in complete log");
+        } else {
+          console.warn("⚠️ Input image doesn't start with 'data:image/' or is missing");
         }
         
         const output: any = {
@@ -269,13 +260,12 @@ serve(async (req) => {
           hasGeneratedImage: true,
         };
         
-        // Explicitly add generated image - format: data:image/png;base64,[base64string]
-        if (imageUrl && imageUrl.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+        // Add generated image
+        if (imageUrl) {
           output.generatedImage = imageUrl;
-          console.log("✅ Including generated image in output (format matches halloween agent)");
-        } else if (imageUrl) {
-          console.warn("⚠️ Generated image format doesn't match expected pattern:", imageUrl.substring(0, 50));
-          output.generatedImage = imageUrl; // Still include it
+          console.log("✅ Including full generated image in output");
+        } else {
+          console.warn("⚠️ Generated image is missing");
         }
         
         await logger.log({

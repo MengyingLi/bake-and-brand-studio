@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { SceneInput } from "@/components/SceneInput";
 import { ImageGallery } from "@/components/ImageGallery";
+import { RecipeBrainstorm } from "@/components/RecipeBrainstorm";
 import { Button } from "@/components/ui/button";
 import { Wand2, ChefHat } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +14,6 @@ const Index = () => {
   const [sceneDescription, setSceneDescription] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStep, setGenerationStep] = useState<"analyzing" | "generating" | null>(null);
 
   const handleImageSelect = async (file: File) => {
     setSelectedImage(file);
@@ -36,7 +36,6 @@ const Index = () => {
     }
 
     setIsGenerating(true);
-    setGenerationStep("analyzing");
     
     try {
       // Create canvas to convert image to proper format
@@ -73,19 +72,14 @@ const Index = () => {
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Convert to PNG base64
-        const base64Image = canvas.toDataURL('image/png');
+        // Convert to JPEG base64 with 85% quality to match output format
+        const base64Image = canvas.toDataURL('image/jpeg', 0.85);
         
         // Log start of generation (after image conversion, matching halloween agent pattern)
         await logGenerationEvent("start", {
           image: base64Image,
           sceneDescription: sceneDescription || undefined,
         });
-        
-        // Simulate step transition for better UX
-        setTimeout(() => {
-          setGenerationStep("generating");
-        }, 3000);
         
         const { data, error } = await supabase.functions.invoke("generate-food-variant", {
           body: {
@@ -116,14 +110,12 @@ const Index = () => {
         }
         
         setIsGenerating(false);
-        setGenerationStep(null);
       };
       
       img.onerror = async () => {
         URL.revokeObjectURL(objectUrl);
         toast.error("Failed to load image file");
         setIsGenerating(false);
-        setGenerationStep(null);
         
         // Log error (matching halloween agent pattern)
         await logGenerationEvent("error", {
@@ -136,7 +128,6 @@ const Index = () => {
       console.error("Generation error:", error);
       toast.error("Failed to generate variant. Please try again.");
       setIsGenerating(false);
-      setGenerationStep(null);
       
       // Log error (matching halloween agent pattern)
       await logGenerationEvent("error", {
@@ -169,6 +160,21 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="space-y-12">
+          {/* Brainstorm Section */}
+          <RecipeBrainstorm />
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Then photograph your creation
+              </span>
+            </div>
+          </div>
+
           {/* Upload Section */}
           <section className="space-y-6">
             <ImageUpload
@@ -203,13 +209,6 @@ const Index = () => {
                       </>
                     )}
                   </Button>
-                  
-                  {generationStep && (
-                    <div className="text-sm text-muted-foreground animate-pulse">
-                      {generationStep === "analyzing" && "⚡ Step 1/2: Analyzing product image..."}
-                      {generationStep === "generating" && "✨ Step 2/2: Generating new background..."}
-                    </div>
-                  )}
                 </div>
               </div>
             )}

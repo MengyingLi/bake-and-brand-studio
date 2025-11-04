@@ -1,5 +1,8 @@
 project_id = "tkxytufbaroztfgieubb"
 
+[functions.brainstorm-recipe]
+verify_jwt = false
+
 [functions.generate-food-variant]
 verify_jwt = false
 
