@@ -102,14 +102,10 @@ Return ONLY valid JSON in this exact format:
 
       // Populate root span Input/Metadata for trace table visibility
       rootSpan.log({
-        input: [
-          { role: "system", content: systemContent },
-          { role: "user", content: userContent }
-        ],
+        input: { ingredients },
         metadata: {
           month,
           season,
-          ingredients,
           environment: "supabase-edge",
           timestamp: new Date().toISOString(),
           schemaVersion: "v2",
@@ -118,7 +114,16 @@ Return ONLY valid JSON in this exact format:
 
       // AI Gateway call
       const response = await rootSpan.traced(async (span: any) => {
-        span.log({ step: "ai_gateway_call", model: "google/gemini-2.5-flash" });
+        // Log LLM input in OpenAI format
+        span.log({
+          input: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent }
+          ],
+          metadata: {
+            model: "google/gemini-2.5-flash",
+          }
+        });
         
         const response = await fetch(
           "https://ai.gateway.lovable.dev/v1/chat/completions",
