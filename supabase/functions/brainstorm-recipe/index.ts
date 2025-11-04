@@ -100,6 +100,24 @@ Return ONLY valid JSON in this exact format:
         return { systemContent, userContent };
       }, { name: "build_prompts" });
 
+      // Populate root span Input/Metadata for trace table visibility
+      try {
+        await rootSpan.log({
+          input: {
+            userPrompt: userContent,
+            month,
+            season,
+            ingredients,
+          },
+          metadata: {
+            systemPrompt: systemContent,
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+            schemaVersion: "v2",
+          },
+        });
+      } catch (_) {}
+
       // Log start event
       if (logger) {
         try {
@@ -234,12 +252,21 @@ Return ONLY valid JSON in this exact format:
         return recipeIdeas;
       }, { name: "parse_tool_call" });
 
-      // Log complete event
-      rootSpan.log({
-        step: "complete",
-        ideaName: recipeIdeas?.idea?.name ?? null,
-        duration: Date.now() - startTime,
-      });
+      // Log Output on root span for trace table visibility
+      try {
+        const preview = `${recipeIdeas?.idea?.name ?? "(no name)"}: ${
+          recipeIdeas?.idea?.description ?? ""
+        }`;
+        await rootSpan.log({
+          output: {
+            preview,
+            recipeJson: JSON.stringify(recipeIdeas),
+          },
+          metadata: {
+            duration: Date.now() - startTime,
+          },
+        });
+      } catch (_) {}
 
       return new Response(JSON.stringify(recipeIdeas), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
