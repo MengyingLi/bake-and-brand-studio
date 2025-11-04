@@ -103,13 +103,15 @@ Return ONLY valid JSON in this exact format:
       // Populate root span Input/Metadata for trace table visibility
       rootSpan.log({
         input: {
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: userContent }
+          ]
+        },
+        metadata: {
           month,
           season,
           ingredients,
-        },
-        metadata: {
-          systemPrompt: systemContent,
-          userPrompt: userContent,
           environment: "supabase-edge",
           timestamp: new Date().toISOString(),
           schemaVersion: "v2",
