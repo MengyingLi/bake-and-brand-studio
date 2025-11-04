@@ -169,7 +169,7 @@ serve(async (req) => {
             ],
           },
         ],
-        max_tokens: 300,
+        max_tokens: 150,
       }),
     });
 
@@ -200,9 +200,9 @@ serve(async (req) => {
         prompt: fullPrompt,
         n: 1,
         size: "1024x1024",
-        quality: "high",
+        quality: "medium",
         output_format: "jpeg",
-        output_compression: 85,
+        output_compression: 75,
       }),
     });
 
