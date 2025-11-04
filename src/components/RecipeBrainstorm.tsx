@@ -28,8 +28,14 @@ export const RecipeBrainstorm = () => {
   const handleAddIngredient = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && currentIngredient.trim()) {
       e.preventDefault();
-      if (!ingredients.includes(currentIngredient.trim())) {
-        setIngredients([...ingredients, currentIngredient.trim()]);
+      const newIngredient = currentIngredient.trim();
+      console.log("Adding ingredient:", newIngredient);
+      if (!ingredients.includes(newIngredient)) {
+        const updated = [...ingredients, newIngredient];
+        console.log("Updated ingredients:", updated);
+        setIngredients(updated);
+      } else {
+        console.log("Ingredient already exists");
       }
       setCurrentIngredient("");
     }
@@ -92,25 +98,29 @@ export const RecipeBrainstorm = () => {
             onKeyDown={handleAddIngredient}
             className="text-base"
           />
-          {ingredients.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-2">
-              {ingredients.map((ingredient) => (
+          <div className="flex flex-wrap gap-2 pt-2 min-h-[32px]">
+            {ingredients.length > 0 ? (
+              ingredients.map((ingredient) => (
                 <Badge
                   key={ingredient}
                   variant="secondary"
-                  className="text-sm py-1 px-3 gap-1"
+                  className="text-sm py-1 px-3 flex items-center gap-1"
                 >
                   {ingredient}
                   <button
                     onClick={() => handleRemoveIngredient(ingredient)}
                     className="ml-1 hover:text-destructive"
+                    type="button"
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground italic">
+                Your ingredients will appear here as pills
+              </span>
+            )}</div>
         </div>
 
         <div className="flex justify-center">
