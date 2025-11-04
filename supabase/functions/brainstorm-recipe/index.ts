@@ -47,6 +47,47 @@ Deno.serve(async (req) => {
 
     console.log("Generating recipe idea for:", { month, season, ingredients });
 
+    // Build the exact prompt texts we send to the AI gateway (for trace visibility)
+    const systemContent = `You are a culinary innovation expert for MY Baked Goods, a small-batch artisan bakery known for:
+- Slow fermentation and traditional techniques
+- Seasonal, locally-sourced ingredients
+- Handmade breads and pastries
+- Comfort-focused, rustic aesthetics
+- Recipes inspired by family traditions and travels
+- Weekend specials and rotating seasonal menu
+
+Current season: ${season} (${month})
+${ingredients.length > 0 ? `Available ingredients: ${ingredients.join(", ")}` : ""}
+
+Generate 1 unique recipe idea that is:
+1. Perfectly seasonal for ${month}
+2. On-brand with MY Baked Goods' artisan, comfort-focused style
+3. Marketable and different from typical bakery offerings
+4. Practical for small-batch production
+5. Featuring ingredients at their peak right now
+${ingredients.length > 0 ? `6. Incorporates as many of the available ingredients as possible` : ""}
+
+Provide a detailed recipe with exact measurements and clear instructions.`;
+
+    const userContent = `Give me 1 seasonal baking idea for ${month} that would be perfect for MY Baked Goods${
+      ingredients.length > 0 ? ` using these ingredients: ${ingredients.join(", ")}` : ""
+    }. The idea should be unique, marketable, and include a complete recipe.
+
+Return ONLY valid JSON in this exact format:
+{
+  "idea": {
+    "name": "Recipe name",
+    "description": "One-sentence description",
+    "whySeasonable": "Why this is perfect for ${month} and what ingredients are at their peak",
+    "marketDifferentiator": "What makes this unique and marketable compared to competitors",
+    "recipe": {
+      "ingredients": ["ingredient with measurement", "ingredient with measurement"],
+      "instructions": ["Detailed step 1", "Detailed step 2"],
+      "tips": ["Pro tip 1", "Pro tip 2"]
+    }
+  }
+}`;
+
     // Log start event
     if (logger) {
       try {
@@ -54,10 +95,13 @@ Deno.serve(async (req) => {
           event: "brainstorm_recipe",
           type: "start",
           input: {
-            hasIngredients: Array.isArray(ingredients) && ingredients.length > 0,
-            ingredients,
+            messages: [
+              { role: "system", content: systemContent },
+              { role: "user", content: userContent },
+            ],
             month,
             season,
+            ingredients,
           },
           metadata: {
             environment: "supabase-edge",
@@ -194,7 +238,7 @@ Return ONLY valid JSON in this exact format:
 
     const recipeIdeas = JSON.parse(toolCall.function.arguments);
 
-    // Log complete event
+    // Log complete event with full text payload for Braintrust visibility
     if (logger) {
       try {
         const duration = Date.now() - startTime;
@@ -202,13 +246,19 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "complete",
           input: {
-            hasIngredients: Array.isArray(ingredients) && ingredients.length > 0,
+            messages: [
+              { role: "system", content: systemContent },
+              { role: "user", content: userContent },
+            ],
             month,
             season,
+            ingredients,
           },
           output: {
-            ideaName: recipeIdeas?.idea?.name ?? null,
-            hasRecipe: !!recipeIdeas?.idea?.recipe,
+            recipeJson: JSON.stringify(recipeIdeas),
+            preview: `${recipeIdeas?.idea?.name ?? "(no name)"}: ${
+              recipeIdeas?.idea?.description ?? ""
+            }`,
           },
           metadata: {
             environment: "supabase-edge",
