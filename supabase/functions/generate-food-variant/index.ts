@@ -1,16 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-
-// Import Braintrust SDK for Deno
-let braintrust: any = null;
-try {
-  braintrust = await import("https://esm.sh/braintrust@0.4.8");
-  console.log("✅ Braintrust SDK imported successfully");
-} catch (e) {
-  console.error("❌ Failed to import Braintrust SDK:", e);
-}
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -21,104 +11,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Only allow POST requests
-  if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ 
-        error: "Method not allowed. This endpoint only accepts POST requests.",
-        usage: "Call this function from your app using supabase.functions.invoke()"
-      }),
-      { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, 
-        status: 405 
-      }
-    );
-  }
-
-  // Initialize Braintrust logger
-  let logger;
-  const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
-  
-  console.log("🔍 Braintrust initialization check:", {
-    hasBraintrustSDK: !!braintrust,
-    hasAPIKey: !!BRAINTRUST_API_KEY,
-    apiKeyLength: BRAINTRUST_API_KEY?.length || 0,
-  });
-  
-  if (braintrust && BRAINTRUST_API_KEY) {
-    try {
-      logger = braintrust.initLogger({
-        projectName: "Bake-and-Brand-Studio",
-        apiKey: BRAINTRUST_API_KEY,
-        asyncFlush: false,
-      });
-      console.log("✅ Braintrust logger initialized successfully");
-    } catch (e) {
-      console.error("❌ Failed to initialize Braintrust logger:", e);
-    }
-  } else {
-    console.log("⚠️ Braintrust logging disabled:", {
-      reason: !braintrust ? "SDK not loaded" : "API key not found"
-    });
-  }
-
-  const startTime = Date.now();
-  
   try {
-    // Parse request body with error handling
-    let requestBody;
-    try {
-      requestBody = await req.json();
-      console.log("📥 Request body received successfully");
-    } catch (parseError) {
-      console.error("❌ Failed to parse request body:", parseError);
-      return new Response(
-        JSON.stringify({ error: "Invalid or empty request body" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
-    
-    const { image, sceneDescription } = requestBody;
-    
-    // Log start of generation
-    if (logger) {
-      try {
-        console.log("🔍 Debug - Input image details:", {
-          hasImage: !!image,
-          imageType: image ? typeof image : 'undefined',
-          imageLength: image ? image.length : 0,
-          imagePrefix: image ? image.substring(0, 50) : 'none',
-          startsWithDataImage: image ? image.startsWith('data:image/') : false,
-        });
-        
-        const input: any = {
-          hasImage: !!image,
-          hasSceneDescription: !!sceneDescription,
-          sceneDescription: sceneDescription || "default",
-        };
-        
-        // Add image field if it exists
-        if (image && image.startsWith('data:image/')) {
-          input.image = image;
-          console.log("✅ Including full input image in Braintrust log");
-        } else {
-          console.warn("⚠️ Image doesn't start with 'data:image/' or is missing");
-        }
-        
-        await logger.log({
-          event: "image_generation",
-          type: "start",
-          input,
-          metadata: {
-            environment: "supabase-edge",
-            timestamp: new Date().toISOString(),
-          },
-        });
-        console.log("✅ Logged start event to Braintrust");
-      } catch (e) {
-        console.error("❌ Failed to log start event:", e);
-      }
-    }
+    const { image, sceneDescription } = await req.json();
     
     if (!image) {
       return new Response(
@@ -141,10 +35,10 @@ serve(async (req) => {
       throw new Error("OPENAI_KEY is not configured");
     }
 
-    console.log("Analyzing uploaded image...");
+    console.log("Step 1: Analyzing product image...");
 
-    // First, analyze the uploaded image to understand what it contains
-    const visionResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Step 1: Analyze the product image with GPT-4o-mini vision (simplified for speed)
+    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -158,7 +52,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Describe this food product in detail. Focus on: what the product is, its colors, textures, shape, and any distinctive features. Be specific and concise.",
+                text: "Briefly describe this food: type, colors, and plating (max 50 words).",
               },
               {
                 type: "image_url",
@@ -169,25 +63,47 @@ serve(async (req) => {
             ],
           },
         ],
-        max_tokens: 150,
+        max_tokens: 100,
       }),
     });
 
-    if (!visionResponse.ok) {
-      const errorText = await visionResponse.text();
-      console.error("Vision API error:", visionResponse.status, errorText);
-      throw new Error(`Failed to analyze image: ${visionResponse.status}`);
+    const analysisText = await analysisResponse.text();
+    console.log("Analysis response status:", analysisResponse.status);
+    console.log("Analysis response body:", analysisText);
+
+    if (!analysisResponse.ok) {
+      return new Response(
+        JSON.stringify({ error: `Analysis failed: ${analysisResponse.status} - ${analysisText}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
     }
 
-    const visionData = await visionResponse.json();
-    const productDescription = visionData.choices[0].message.content;
+    let analysisData;
+    try {
+      analysisData = JSON.parse(analysisText);
+    } catch (e) {
+      console.error("Failed to parse analysis response:", e);
+      return new Response(
+        JSON.stringify({ error: "Invalid response from OpenAI" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
 
-    console.log("Product identified:", productDescription);
-    console.log("Generating new image with scene:", sceneDescription);
+    const productDescription = analysisData.choices?.[0]?.message?.content;
 
-    // Generate new image with the desired background/scene
+    if (!productDescription) {
+      console.error("No product description in response:", analysisText);
+      return new Response(
+        JSON.stringify({ error: "Failed to analyze product image - no description returned" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      );
+    }
+
+    console.log("Step 2: Generating new image with scene:", sceneDescription);
+
+    // Step 2: Generate new image with the product description + desired background
     const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
-    const fullPrompt = `Professional food photography of ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image with beautiful lighting and composition.`;
+    const fullPrompt = `Professional food photography: ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image.`;
 
     const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
@@ -200,9 +116,8 @@ serve(async (req) => {
         prompt: fullPrompt,
         n: 1,
         size: "1024x1024",
-        quality: "medium",
-        output_format: "jpeg",
-        output_compression: 75,
+        quality: "high",
+        output_format: "png",
       }),
     });
 
@@ -220,70 +135,9 @@ serve(async (req) => {
     }
 
     // Convert base64 to data URL
-    const imageUrl = `data:image/jpeg;base64,${generatedImage}`;
+    const imageUrl = `data:image/png;base64,${generatedImage}`;
 
     console.log("Variant generated successfully");
-    
-    // Log successful completion
-    if (logger) {
-      try {
-        const duration = Date.now() - startTime;
-        
-        console.log("🔍 Debug - Complete log - Input image details:", {
-          hasImage: !!image,
-          imageLength: image ? image.length : 0,
-          imagePrefix: image ? image.substring(0, 50) : 'none',
-        });
-        
-        console.log("🔍 Debug - Complete log - Output image details:", {
-          hasImageUrl: !!imageUrl,
-          imageUrlLength: imageUrl ? imageUrl.length : 0,
-          imageUrlPrefix: imageUrl ? imageUrl.substring(0, 50) : 'none',
-        });
-        
-        const input: any = {
-          hasImage: !!image,
-          hasSceneDescription: !!sceneDescription,
-          sceneDescription: sceneDescription || "default",
-        };
-        
-        // Add input image if it exists
-        if (image && image.startsWith('data:image/')) {
-          input.image = image;
-          console.log("✅ Including full input image in complete log");
-        } else {
-          console.warn("⚠️ Input image doesn't start with 'data:image/' or is missing");
-        }
-        
-        const output: any = {
-          success: true,
-          hasGeneratedImage: true,
-        };
-        
-        // Add generated image
-        if (imageUrl) {
-          output.generatedImage = imageUrl;
-          console.log("✅ Including full generated image in output");
-        } else {
-          console.warn("⚠️ Generated image is missing");
-        }
-        
-        await logger.log({
-          event: "image_generation",
-          type: "complete",
-          input,
-          output,
-          metadata: {
-            environment: "supabase-edge",
-            timestamp: new Date().toISOString(),
-            duration,
-          },
-        });
-        console.log("✅ Logged complete event to Braintrust");
-      } catch (e) {
-        console.error("❌ Failed to log complete event:", e);
-      }
-    }
 
     return new Response(
       JSON.stringify({ imageUrl }),
@@ -292,27 +146,6 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in generate-food-variant:", error);
     const errorMessage = error instanceof Error ? error.message : "Internal server error";
-    
-    // Log error
-    if (logger) {
-      try {
-        const duration = Date.now() - startTime;
-        await logger.log({
-          event: "image_generation",
-          type: "error",
-          error: errorMessage,
-          metadata: {
-            environment: "supabase-edge",
-            timestamp: new Date().toISOString(),
-            duration,
-          },
-        });
-        console.log("✅ Logged error event to Braintrust");
-      } catch (e) {
-        console.error("❌ Failed to log error event:", e);
-      }
-    }
-    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
