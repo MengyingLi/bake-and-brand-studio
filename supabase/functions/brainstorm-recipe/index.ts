@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       console.log("Generating recipe idea for:", { month, season, ingredients });
 
       // Build prompts
-      const s1 = logger?.startSpan("build_prompts");
+      const s1 = root?.startSpan("build_prompts");
       let systemContent: string;
       let userContent: string;
       try {
@@ -130,7 +130,7 @@ Return ONLY valid JSON in this exact format:
       }
 
       // AI Gateway call
-      const s2 = logger?.startSpan("ai_gateway_call");
+      const s2 = root?.startSpan("ai_gateway_call");
       let response: Response;
       try {
         await s2?.log({ model: "google/gemini-2.5-flash" });
@@ -227,7 +227,7 @@ Return ONLY valid JSON in this exact format:
       }
 
       // Parse tool call
-      const s3 = logger?.startSpan("parse_tool_call");
+      const s3 = root?.startSpan("parse_tool_call");
       let recipeIdeas: any;
       try {
         const data = await response.json();
@@ -249,7 +249,7 @@ Return ONLY valid JSON in this exact format:
       }
 
       // Log and return
-      const s4 = logger?.startSpan("log_and_return");
+      const s4 = root?.startSpan("log_and_return");
       try {
         await s4?.log({ ideaName: recipeIdeas?.idea?.name ?? null });
         

@@ -92,7 +92,7 @@ serve(async (req) => {
       console.log("Step 1: Analyzing product image...");
 
       // Vision analyze
-      const v1 = logger?.startSpan("vision_analyze");
+      const v1 = root?.startSpan("vision_analyze");
       let productDescription: string;
       try {
         await v1?.log({ model: "gpt-4o-mini" });
@@ -169,7 +169,7 @@ serve(async (req) => {
       console.log("Step 2: Generating new image with scene:", sceneDescription);
 
       // Compose generation prompt
-      const v2 = logger?.startSpan("compose_generation_prompt");
+      const v2 = root?.startSpan("compose_generation_prompt");
       let fullPrompt: string;
       try {
         await v2?.log({ hasProductDescription: !!productDescription });
@@ -181,7 +181,7 @@ serve(async (req) => {
       }
 
       // Image generate
-      const v3 = logger?.startSpan("image_generate");
+      const v3 = root?.startSpan("image_generate");
       let generatedImage: string;
       try {
         await v3?.log({ model: "gpt-image-1", size: "1024x1024" });
@@ -224,7 +224,7 @@ serve(async (req) => {
       }
 
       // Encode and respond
-      const v4 = logger?.startSpan("encode_and_respond");
+      const v4 = root?.startSpan("encode_and_respond");
       try {
         await v4?.log({ hasGeneratedImage: !!generatedImage });
         
