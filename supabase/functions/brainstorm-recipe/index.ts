@@ -100,10 +100,7 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "start",
           input: {
-            messages: [
-              { role: "system", content: systemContent },
-              { role: "user", content: userContent },
-            ],
+            userPrompt: userContent,
             month,
             season,
             ingredients,
@@ -111,6 +108,7 @@ Return ONLY valid JSON in this exact format:
           metadata: {
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
+            systemPrompt: systemContent,
           },
         });
         console.info("[Braintrust] Start event sent successfully");
@@ -255,10 +253,7 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "complete",
           input: {
-            messages: [
-              { role: "system", content: systemContent },
-              { role: "user", content: userContent },
-            ],
+            userPrompt: userContent,
             month,
             season,
             ingredients,
@@ -273,6 +268,7 @@ Return ONLY valid JSON in this exact format:
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
             duration,
+            systemPrompt: systemContent,
           },
         });
         console.info("[Braintrust] Complete event sent successfully");
