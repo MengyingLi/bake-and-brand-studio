@@ -42,8 +42,7 @@ serve(async (req) => {
       console.info("[Braintrust] Skipping - SDK or API key missing");
     }
 
-    const root = logger?.startSpan("request");
-    try {
+    return await (logger ? braintrust.traced(async (rootSpan: any) => {
       const { image, sceneDescription } = await req.json();
       
       if (!image) {
@@ -92,10 +91,8 @@ serve(async (req) => {
       console.log("Step 1: Analyzing product image...");
 
       // Vision analyze
-      const v1 = root?.startSpan("vision_analyze");
-      let productDescription: string;
-      try {
-        await v1?.log({ model: "gpt-4o-mini" });
+      const productDescription = await braintrust.traced(async (span: any) => {
+        span.log({ step: "vision_analyze", model: "gpt-4o-mini" });
 
         const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -130,7 +127,7 @@ serve(async (req) => {
         console.log("Analysis response status:", analysisResponse.status);
         console.log("Analysis response body:", analysisText);
 
-        await v1?.log({ status: analysisResponse.status });
+        span.log({ status: analysisResponse.status });
 
         if (!analysisResponse.ok) {
           return new Response(
@@ -150,7 +147,7 @@ serve(async (req) => {
           );
         }
 
-        productDescription = analysisData.choices?.[0]?.message?.content;
+        const productDescription = analysisData.choices?.[0]?.message?.content;
 
         if (!productDescription) {
           console.error("No product description in response:", analysisText);
@@ -159,32 +156,25 @@ serve(async (req) => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
           );
         }
-      } catch (err) {
-        await v1?.log({ error: err instanceof Error ? err.message : String(err) });
-        throw err;
-      } finally {
-        await v1?.end();
-      }
+        
+        return productDescription;
+      }, { name: "vision_analyze" });
 
       console.log("Step 2: Generating new image with scene:", sceneDescription);
 
       // Compose generation prompt
-      const v2 = root?.startSpan("compose_generation_prompt");
-      let fullPrompt: string;
-      try {
-        await v2?.log({ hasProductDescription: !!productDescription });
+      const fullPrompt = await braintrust.traced(async (span: any) => {
+        span.log({ step: "compose_generation_prompt", hasProductDescription: !!productDescription });
         
         const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
-        fullPrompt = `Professional food photography: ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image.`;
-      } finally {
-        await v2?.end();
-      }
+        const fullPrompt = `Professional food photography: ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image.`;
+        
+        return fullPrompt;
+      }, { name: "compose_generation_prompt" });
 
       // Image generate
-      const v3 = root?.startSpan("image_generate");
-      let generatedImage: string;
-      try {
-        await v3?.log({ model: "gpt-image-1", size: "1024x1024" });
+      const generatedImage = await braintrust.traced(async (span: any) => {
+        span.log({ step: "image_generate", model: "gpt-image-1", size: "1024x1024" });
 
         const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
@@ -202,7 +192,7 @@ serve(async (req) => {
           }),
         });
 
-        await v3?.log({ status: generateResponse.status });
+        span.log({ status: generateResponse.status });
 
         if (!generateResponse.ok) {
           const errorText = await generateResponse.text();
@@ -211,87 +201,114 @@ serve(async (req) => {
         }
 
         const generateData = await generateResponse.json();
-        generatedImage = generateData.data?.[0]?.b64_json;
+        const generatedImage = generateData.data?.[0]?.b64_json;
 
         if (!generatedImage) {
           throw new Error("No image generated");
         }
-      } catch (err) {
-        await v3?.log({ error: err instanceof Error ? err.message : String(err) });
-        throw err;
-      } finally {
-        await v3?.end();
-      }
+        
+        return generatedImage;
+      }, { name: "image_generate" });
 
       // Encode and respond
-      const v4 = root?.startSpan("encode_and_respond");
-      try {
-        await v4?.log({ hasGeneratedImage: !!generatedImage });
-        
-        const imageUrl = `data:image/png;base64,${generatedImage}`;
+      const imageUrl = `data:image/png;base64,${generatedImage}`;
+      console.log("Variant generated successfully");
 
-        console.log("Variant generated successfully");
+      rootSpan.log({
+        step: "complete",
+        hasImageUrl: !!imageUrl,
+        duration: Date.now() - startTime,
+      });
 
-        // Log complete event
-        if (logger) {
-          try {
-            console.info("[Braintrust] Sending complete event...");
-            const duration = Date.now() - startTime;
-            await logger.log({
-              event: "generate_food_variant",
-              type: "complete",
-              input: {
-                hasImage: !!image,
-                sceneDescription,
-              },
-              output: {
-                success: true,
-                hasImageUrl: !!imageUrl,
-              },
-              metadata: {
-                environment: "supabase-edge",
-                timestamp: new Date().toISOString(),
-                duration,
-              },
-            });
-            console.info("[Braintrust] Complete event sent successfully");
-          } catch (e) {
-            console.error("[Braintrust] Failed to send complete event:", e);
-          }
-        }
-
+      return new Response(
+        JSON.stringify({ imageUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }, { name: "request" }) : (async () => {
+      // Fallback when logger not available
+      const { image, sceneDescription } = await req.json();
+      
+      if (!image) {
         return new Response(
-          JSON.stringify({ imageUrl }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Image is required" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
         );
-      } finally {
-        await v4?.end();
       }
-    } finally {
-      await root?.end();
-    }
+
+      if (!image.startsWith('data:image/')) {
+        return new Response(
+          JSON.stringify({ error: "Image must be a data URL (data:image/...)" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
+      }
+
+      const OPENAI_API_KEY = Deno.env.get("OPENAI_KEY");
+      if (!OPENAI_API_KEY) {
+        throw new Error("OPENAI_KEY is not configured");
+      }
+
+      // Execute without tracing
+      const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Briefly describe this food: type, colors, and plating (max 50 words)." },
+                { type: "image_url", image_url: { url: image } },
+              ],
+            },
+          ],
+          max_tokens: 100,
+        }),
+      });
+
+      if (!analysisResponse.ok) {
+        throw new Error(`Analysis failed: ${analysisResponse.status}`);
+      }
+
+      const analysisData = await analysisResponse.json();
+      const productDescription = analysisData.choices?.[0]?.message?.content;
+      if (!productDescription) throw new Error("No product description");
+
+      const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
+      const fullPrompt = `Professional food photography: ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image.`;
+
+      const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-image-1",
+          prompt: fullPrompt,
+          n: 1,
+          size: "1024x1024",
+          quality: "high",
+          output_format: "png",
+        }),
+      });
+
+      if (!generateResponse.ok) throw new Error(`Failed to generate image`);
+      const generateData = await generateResponse.json();
+      const generatedImage = generateData.data?.[0]?.b64_json;
+      if (!generatedImage) throw new Error("No image generated");
+
+      const imageUrl = `data:image/png;base64,${generatedImage}`;
+      return new Response(
+        JSON.stringify({ imageUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    })());
   } catch (error) {
     console.error("Error in generate-food-variant:", error);
-    
-    // Log error event
-    try {
-      if (braintrust && Deno.env.get("BRAINTRUST_API_KEY")) {
-        const logger = braintrust.initLogger({
-          projectName: "Bake-and-Brand-Studio",
-          apiKey: Deno.env.get("BRAINTRUST_API_KEY")!,
-          asyncFlush: false,
-        });
-        await logger.log({
-          event: "generate_food_variant",
-          type: "error",
-          error: error instanceof Error ? error.message : String(error),
-          metadata: {
-            environment: "supabase-edge",
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    } catch (_) {}
     
     const errorMessage = error instanceof Error ? error.message : "Internal server error";
     return new Response(
