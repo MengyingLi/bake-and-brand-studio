@@ -1,5 +1,3 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -17,11 +15,13 @@ Deno.serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    const { ingredients = [] } = await req.json();
+
     const currentDate = new Date();
     const month = currentDate.toLocaleString('default', { month: 'long' });
     const season = getSeason(currentDate.getMonth());
 
-    console.log("Generating recipe ideas for:", { month, season });
+    console.log("Generating recipe idea for:", { month, season, ingredients });
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -45,35 +45,35 @@ Deno.serve(async (req) => {
 - Weekend specials and rotating seasonal menu
 
 Current season: ${season} (${month})
+${ingredients.length > 0 ? `Available ingredients: ${ingredients.join(", ")}` : ""}
 
-Generate 3 unique recipe ideas that are:
+Generate 1 unique recipe idea that is:
 1. Perfectly seasonal for ${month}
 2. On-brand with MY Baked Goods' artisan, comfort-focused style
 3. Marketable and different from typical bakery offerings
 4. Practical for small-batch production
 5. Featuring ingredients at their peak right now
+${ingredients.length > 0 ? `6. Incorporates as many of the available ingredients as possible` : ""}
 
-For each idea, provide detailed recipes with exact measurements and clear instructions.`,
+Provide a detailed recipe with exact measurements and clear instructions.`,
             },
             {
               role: "user",
-              content: `Give me 3 seasonal baking ideas for ${month} that would be perfect for MY Baked Goods. Each idea should be unique, marketable, and include a complete recipe.
+              content: `Give me 1 seasonal baking idea for ${month} that would be perfect for MY Baked Goods${ingredients.length > 0 ? ` using these ingredients: ${ingredients.join(", ")}` : ""}. The idea should be unique, marketable, and include a complete recipe.
 
 Return ONLY valid JSON in this exact format:
 {
-  "ideas": [
-    {
-      "name": "Recipe name",
-      "description": "One-sentence description",
-      "whySeasonable": "Why this is perfect for ${month} and what ingredients are at their peak",
-      "marketDifferentiator": "What makes this unique and marketable compared to competitors",
-      "recipe": {
-        "ingredients": ["ingredient with measurement", "ingredient with measurement"],
-        "instructions": ["Detailed step 1", "Detailed step 2"],
-        "tips": ["Pro tip 1", "Pro tip 2"]
-      }
+  "idea": {
+    "name": "Recipe name",
+    "description": "One-sentence description",
+    "whySeasonable": "Why this is perfect for ${month} and what ingredients are at their peak",
+    "marketDifferentiator": "What makes this unique and marketable compared to competitors",
+    "recipe": {
+      "ingredients": ["ingredient with measurement", "ingredient with measurement"],
+      "instructions": ["Detailed step 1", "Detailed step 2"],
+      "tips": ["Pro tip 1", "Pro tip 2"]
     }
-  ]
+  }
 }`,
             },
           ],
@@ -81,59 +81,54 @@ Return ONLY valid JSON in this exact format:
             {
               type: "function",
               function: {
-                name: "generate_recipe_ideas",
-                description: "Generate 3 seasonal recipe ideas with complete details",
+                name: "generate_recipe_idea",
+                description: "Generate 1 seasonal recipe idea with complete details",
                 parameters: {
                   type: "object",
                   properties: {
-                    ideas: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          name: { type: "string" },
-                          description: { type: "string" },
-                          whySeasonable: { type: "string" },
-                          marketDifferentiator: { type: "string" },
-                          recipe: {
-                            type: "object",
-                            properties: {
-                              ingredients: {
-                                type: "array",
-                                items: { type: "string" },
-                              },
-                              instructions: {
-                                type: "array",
-                                items: { type: "string" },
-                              },
-                              tips: {
-                                type: "array",
-                                items: { type: "string" },
-                              },
+                    idea: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        description: { type: "string" },
+                        whySeasonable: { type: "string" },
+                        marketDifferentiator: { type: "string" },
+                        recipe: {
+                          type: "object",
+                          properties: {
+                            ingredients: {
+                              type: "array",
+                              items: { type: "string" },
                             },
-                            required: ["ingredients", "instructions", "tips"],
+                            instructions: {
+                              type: "array",
+                              items: { type: "string" },
+                            },
+                            tips: {
+                              type: "array",
+                              items: { type: "string" },
+                            },
                           },
+                          required: ["ingredients", "instructions", "tips"],
                         },
-                        required: [
-                          "name",
-                          "description",
-                          "whySeasonable",
-                          "marketDifferentiator",
-                          "recipe",
-                        ],
                       },
-                      minItems: 3,
-                      maxItems: 3,
+                      required: [
+                        "name",
+                        "description",
+                        "whySeasonable",
+                        "marketDifferentiator",
+                        "recipe",
+                      ],
                     },
                   },
-                  required: ["ideas"],
+                  required: ["idea"],
                 },
               },
             },
           ],
           tool_choice: {
             type: "function",
-            function: { name: "generate_recipe_ideas" },
+            function: { name: "generate_recipe_idea" },
           },
         }),
       }
