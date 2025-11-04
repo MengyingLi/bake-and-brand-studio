@@ -141,75 +141,11 @@ serve(async (req) => {
       throw new Error("OPENAI_KEY is not configured");
     }
 
-    console.log("Step 1: Analyzing product image...");
+    console.log("Generating new image with scene:", sceneDescription);
 
-    // Step 1: Analyze the product image with GPT-4o-mini vision (simplified for speed)
-    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Briefly describe this food: type, colors, and plating (max 50 words).",
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: image,
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 100,
-      }),
-    });
-
-    const analysisText = await analysisResponse.text();
-    console.log("Analysis response status:", analysisResponse.status);
-    console.log("Analysis response body:", analysisText);
-
-    if (!analysisResponse.ok) {
-      return new Response(
-        JSON.stringify({ error: `Analysis failed: ${analysisResponse.status} - ${analysisText}` }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-
-    let analysisData;
-    try {
-      analysisData = JSON.parse(analysisText);
-    } catch (e) {
-      console.error("Failed to parse analysis response:", e);
-      return new Response(
-        JSON.stringify({ error: "Invalid response from OpenAI" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-
-    const productDescription = analysisData.choices?.[0]?.message?.content;
-
-    if (!productDescription) {
-      console.error("No product description in response:", analysisText);
-      return new Response(
-        JSON.stringify({ error: "Failed to analyze product image - no description returned" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-
-    console.log("Step 2: Generating new image with scene:", sceneDescription);
-
-    // Step 2: Generate new image with the product description + desired background
+    // Generate new image with the desired background/scene
     const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
-    const fullPrompt = `Professional food photography: ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image.`;
+    const fullPrompt = `Professional food photography of a food product. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image with beautiful lighting and composition.`;
 
     const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",

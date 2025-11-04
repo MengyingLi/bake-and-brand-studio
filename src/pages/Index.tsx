@@ -13,7 +13,6 @@ const Index = () => {
   const [sceneDescription, setSceneDescription] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStep, setGenerationStep] = useState<"analyzing" | "generating" | null>(null);
 
   const handleImageSelect = async (file: File) => {
     setSelectedImage(file);
@@ -36,7 +35,6 @@ const Index = () => {
     }
 
     setIsGenerating(true);
-    setGenerationStep("analyzing");
     
     try {
       // Create canvas to convert image to proper format
@@ -82,11 +80,6 @@ const Index = () => {
           sceneDescription: sceneDescription || undefined,
         });
         
-        // Simulate step transition for better UX
-        setTimeout(() => {
-          setGenerationStep("generating");
-        }, 3000);
-        
         const { data, error } = await supabase.functions.invoke("generate-food-variant", {
           body: {
             image: base64Image,
@@ -116,14 +109,12 @@ const Index = () => {
         }
         
         setIsGenerating(false);
-        setGenerationStep(null);
       };
       
       img.onerror = async () => {
         URL.revokeObjectURL(objectUrl);
         toast.error("Failed to load image file");
         setIsGenerating(false);
-        setGenerationStep(null);
         
         // Log error (matching halloween agent pattern)
         await logGenerationEvent("error", {
@@ -136,7 +127,6 @@ const Index = () => {
       console.error("Generation error:", error);
       toast.error("Failed to generate variant. Please try again.");
       setIsGenerating(false);
-      setGenerationStep(null);
       
       // Log error (matching halloween agent pattern)
       await logGenerationEvent("error", {
@@ -203,13 +193,6 @@ const Index = () => {
                       </>
                     )}
                   </Button>
-                  
-                  {generationStep && (
-                    <div className="text-sm text-muted-foreground animate-pulse">
-                      {generationStep === "analyzing" && "⚡ Step 1/2: Analyzing product image..."}
-                      {generationStep === "generating" && "✨ Step 2/2: Generating new background..."}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
