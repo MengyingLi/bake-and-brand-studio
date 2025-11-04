@@ -223,7 +223,8 @@ serve(async (req) => {
         n: 1,
         size: "1024x1024",
         quality: "high",
-        output_format: "png",
+        output_format: "jpeg",
+        output_compression: 85,
       }),
     });
 
@@ -241,7 +242,7 @@ serve(async (req) => {
     }
 
     // Convert base64 to data URL
-    const imageUrl = `data:image/png;base64,${generatedImage}`;
+    const imageUrl = `data:image/jpeg;base64,${generatedImage}`;
 
     console.log("Variant generated successfully");
     
