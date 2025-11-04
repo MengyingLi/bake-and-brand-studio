@@ -141,11 +141,53 @@ serve(async (req) => {
       throw new Error("OPENAI_KEY is not configured");
     }
 
+    console.log("Analyzing uploaded image...");
+
+    // First, analyze the uploaded image to understand what it contains
+    const visionResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Describe this food product in detail. Focus on: what the product is, its colors, textures, shape, and any distinctive features. Be specific and concise.",
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: image,
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 300,
+      }),
+    });
+
+    if (!visionResponse.ok) {
+      const errorText = await visionResponse.text();
+      console.error("Vision API error:", visionResponse.status, errorText);
+      throw new Error(`Failed to analyze image: ${visionResponse.status}`);
+    }
+
+    const visionData = await visionResponse.json();
+    const productDescription = visionData.choices[0].message.content;
+
+    console.log("Product identified:", productDescription);
     console.log("Generating new image with scene:", sceneDescription);
 
     // Generate new image with the desired background/scene
     const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
-    const fullPrompt = `Professional food photography of a food product. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image with beautiful lighting and composition.`;
+    const fullPrompt = `Professional food photography of ${productDescription}. Setting: ${backgroundPrompt}. High-quality, appetizing presentation, marketing-ready image with beautiful lighting and composition.`;
 
     const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
