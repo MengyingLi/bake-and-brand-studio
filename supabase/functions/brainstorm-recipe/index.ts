@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       console.log("Generating recipe idea for:", { month, season, ingredients });
 
       // Build prompts
-      const { systemContent, userContent } = await braintrust.traced(async (span: any) => {
+      const { systemContent, userContent } = await rootSpan.traced(async (span: any) => {
         span.log({ step: "build_prompts", month, season, ingredientsCount: ingredients.length });
         
         const systemContent = `You are a culinary innovation expert for MY Baked Goods, a small-batch artisan bakery known for:
@@ -126,7 +126,7 @@ Return ONLY valid JSON in this exact format:
       }
 
       // AI Gateway call
-      const response = await braintrust.traced(async (span: any) => {
+      const response = await rootSpan.traced(async (span: any) => {
         span.log({ step: "ai_gateway_call", model: "google/gemini-2.5-flash" });
         
         const response = await fetch(
@@ -217,7 +217,7 @@ Return ONLY valid JSON in this exact format:
       }
 
       // Parse tool call
-      const recipeIdeas = await braintrust.traced(async (span: any) => {
+      const recipeIdeas = await rootSpan.traced(async (span: any) => {
         span.log({ step: "parse_tool_call" });
         const data = await response.json();
         console.log("AI response:", JSON.stringify(data, null, 2));

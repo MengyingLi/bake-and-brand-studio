@@ -91,7 +91,7 @@ serve(async (req) => {
       console.log("Step 1: Analyzing product image...");
 
       // Vision analyze
-      const productDescription = await braintrust.traced(async (span: any) => {
+      const productDescription = await rootSpan.traced(async (span: any) => {
         span.log({ step: "vision_analyze", model: "gpt-4o-mini" });
 
         const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -163,7 +163,7 @@ serve(async (req) => {
       console.log("Step 2: Generating new image with scene:", sceneDescription);
 
       // Compose generation prompt
-      const fullPrompt = await braintrust.traced(async (span: any) => {
+      const fullPrompt = await rootSpan.traced(async (span: any) => {
         span.log({ step: "compose_generation_prompt", hasProductDescription: !!productDescription });
         
         const backgroundPrompt = sceneDescription || "professional food photography background, clean and appetizing";
@@ -173,7 +173,7 @@ serve(async (req) => {
       }, { name: "compose_generation_prompt" });
 
       // Image generate
-      const generatedImage = await braintrust.traced(async (span: any) => {
+      const generatedImage = await rootSpan.traced(async (span: any) => {
         span.log({ step: "image_generate", model: "gpt-image-1", size: "1024x1024" });
 
         const generateResponse = await fetch("https://api.openai.com/v1/images/generations", {
