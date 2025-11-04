@@ -1,3 +1,12 @@
+// Import Braintrust SDK for Deno (lazy, to avoid hard failure if unavailable)
+let braintrust: any = null;
+try {
+  braintrust = await import("https://esm.sh/braintrust@0.4.8");
+  console.log("✅ Braintrust SDK imported successfully (brainstorm-recipe)");
+} catch (e) {
+  console.log("ℹ️ Braintrust SDK not available (brainstorm-recipe)");
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -10,6 +19,21 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const startTime = Date.now();
+    // Initialize Braintrust logger
+    let logger;
+    const BRAINTRUST_API_KEY = Deno.env.get("BRAINTRUST_API_KEY");
+    if (braintrust && BRAINTRUST_API_KEY) {
+      try {
+        logger = braintrust.initLogger({
+          projectName: "Bake-and-Brand-Studio",
+          apiKey: BRAINTRUST_API_KEY,
+          asyncFlush: false,
+        });
+      } catch (e) {
+        console.log("ℹ️ Failed to init Braintrust logger (brainstorm-recipe)");
+      }
+    }
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -22,6 +46,26 @@ Deno.serve(async (req) => {
     const season = getSeason(currentDate.getMonth());
 
     console.log("Generating recipe idea for:", { month, season, ingredients });
+
+    // Log start event
+    if (logger) {
+      try {
+        await logger.log({
+          event: "brainstorm_recipe",
+          type: "start",
+          input: {
+            hasIngredients: Array.isArray(ingredients) && ingredients.length > 0,
+            ingredients,
+            month,
+            season,
+          },
+          metadata: {
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (_) {}
+    }
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -150,11 +194,55 @@ Return ONLY valid JSON in this exact format:
 
     const recipeIdeas = JSON.parse(toolCall.function.arguments);
 
+    // Log complete event
+    if (logger) {
+      try {
+        const duration = Date.now() - startTime;
+        await logger.log({
+          event: "brainstorm_recipe",
+          type: "complete",
+          input: {
+            hasIngredients: Array.isArray(ingredients) && ingredients.length > 0,
+            month,
+            season,
+          },
+          output: {
+            ideaName: recipeIdeas?.idea?.name ?? null,
+            hasRecipe: !!recipeIdeas?.idea?.recipe,
+          },
+          metadata: {
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+            duration,
+          },
+        });
+      } catch (_) {}
+    }
+
     return new Response(JSON.stringify(recipeIdeas), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error in brainstorm-recipe function:", error);
+    // Log error event
+    try {
+      if (braintrust && Deno.env.get("BRAINTRUST_API_KEY")) {
+        const logger = braintrust.initLogger({
+          projectName: "Bake-and-Brand-Studio",
+          apiKey: Deno.env.get("BRAINTRUST_API_KEY")!,
+          asyncFlush: false,
+        });
+        await logger.log({
+          event: "brainstorm_recipe",
+          type: "error",
+          error: error instanceof Error ? error.message : String(error),
+          metadata: {
+            environment: "supabase-edge",
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    } catch (_) {}
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",
