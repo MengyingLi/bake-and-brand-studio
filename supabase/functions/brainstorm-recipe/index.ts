@@ -100,7 +100,6 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "start",
           input: {
-            userPrompt: userContent,
             month,
             season,
             ingredients,
@@ -109,6 +108,7 @@ Return ONLY valid JSON in this exact format:
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
             systemPrompt: systemContent,
+            userPrompt: userContent,
           },
         });
         console.info("[Braintrust] Start event sent successfully");
@@ -253,7 +253,6 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "complete",
           input: {
-            userPrompt: userContent,
             month,
             season,
             ingredients,
@@ -269,6 +268,7 @@ Return ONLY valid JSON in this exact format:
             timestamp: new Date().toISOString(),
             duration,
             systemPrompt: systemContent,
+            userPrompt: userContent,
           },
         });
         console.info("[Braintrust] Complete event sent successfully");
@@ -294,16 +294,9 @@ Return ONLY valid JSON in this exact format:
           event: "brainstorm_recipe",
           type: "error",
           error: error instanceof Error ? error.message : String(error),
-          input: {
-            userPrompt: typeof userContent === "string" ? userContent : undefined,
-            month: typeof month === "string" ? month : undefined,
-            season: typeof season === "string" ? season : undefined,
-            ingredients: Array.isArray(ingredients) ? ingredients : undefined,
-          },
           metadata: {
             environment: "supabase-edge",
             timestamp: new Date().toISOString(),
-            systemPrompt: typeof systemContent === "string" ? systemContent : undefined,
           },
         });
       }
