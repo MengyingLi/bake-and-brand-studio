@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Lightbulb, Loader2, ChefHat, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { IngredientLibrary } from "./IngredientLibrary";
 
 interface RecipeIdea {
   name: string;
@@ -24,18 +25,15 @@ export const RecipeBrainstorm = () => {
   const [recipeIdea, setRecipeIdea] = useState<RecipeIdea | null>(null);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [currentIngredient, setCurrentIngredient] = useState("");
+  const [draggedIngredient, setDraggedIngredient] = useState<string | null>(null);
 
   const handleAddIngredient = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && currentIngredient.trim()) {
       e.preventDefault();
       const newIngredient = currentIngredient.trim();
-      console.log("Adding ingredient:", newIngredient);
       if (!ingredients.includes(newIngredient)) {
-        const updated = [...ingredients, newIngredient];
-        console.log("Updated ingredients:", updated);
-        setIngredients(updated);
-      } else {
-        console.log("Ingredient already exists");
+        setIngredients([...ingredients, newIngredient]);
+        toast.success(`Added ${newIngredient}`);
       }
       setCurrentIngredient("");
     }
@@ -43,6 +41,23 @@ export const RecipeBrainstorm = () => {
 
   const handleRemoveIngredient = (ingredient: string) => {
     setIngredients(ingredients.filter((i) => i !== ingredient));
+  };
+
+  const handleDragStart = (ingredient: string) => {
+    setDraggedIngredient(ingredient);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIngredient && !ingredients.includes(draggedIngredient)) {
+      setIngredients([...ingredients, draggedIngredient]);
+      toast.success(`Added ${draggedIngredient}`);
+    }
+    setDraggedIngredient(null);
   };
 
   const handleBrainstorm = async () => {
@@ -85,63 +100,92 @@ export const RecipeBrainstorm = () => {
         </p>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="ingredients" className="text-sm font-medium">
-            What ingredients do you have?
-          </label>
-          <Input
-            id="ingredients"
-            placeholder="Type an ingredient and press Enter"
-            value={currentIngredient}
-            onChange={(e) => setCurrentIngredient(e.target.value)}
-            onKeyDown={handleAddIngredient}
-            className="text-base"
-          />
-          <div className="flex flex-wrap gap-2 pt-2 min-h-[32px]">
-            {ingredients.length > 0 ? (
-              ingredients.map((ingredient) => (
-                <Badge
-                  key={ingredient}
-                  variant="secondary"
-                  className="text-sm py-1 px-3 flex items-center gap-1"
-                >
-                  {ingredient}
-                  <button
-                    onClick={() => handleRemoveIngredient(ingredient)}
-                    className="ml-1 hover:text-destructive"
-                    type="button"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))
-            ) : (
-              <span className="text-xs text-muted-foreground italic">
-                Your ingredients will appear here as pills
-              </span>
-            )}</div>
+      <div className="grid md:grid-cols-[300px_1fr] gap-6 max-w-5xl mx-auto">
+        {/* Ingredient Library - Left Side */}
+        <div className="hidden md:block">
+          <IngredientLibrary onDragStart={handleDragStart} />
         </div>
 
-        <div className="flex justify-center">
-          <Button
-            onClick={handleBrainstorm}
-            disabled={isGenerating}
-            size="lg"
-            className="gap-2 text-lg py-6 px-8 shadow-lg hover:shadow-xl transition-all"
+        {/* Main Area - Right Side */}
+        <div className="space-y-4">
+          {/* Mobile: Show ingredient library at top */}
+          <div className="md:hidden mb-4">
+            <IngredientLibrary onDragStart={handleDragStart} />
+          </div>
+
+          <Card
+            className="border-2 border-dashed transition-colors hover:border-primary/50"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Generating Recipe...
-              </>
-            ) : (
-              <>
-                <ChefHat className="h-5 w-5" />
-                Get Recipe Idea
-              </>
-            )}
-          </Button>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Your Selected Ingredients</CardTitle>
+              <CardDescription className="text-xs">
+                Drag from library or type to add custom ingredients
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2 min-h-[80px] p-3 bg-muted/30 rounded-md border">
+                {ingredients.length > 0 ? (
+                  ingredients.map((ingredient) => (
+                    <Badge
+                      key={ingredient}
+                      variant="secondary"
+                      className="text-sm py-1.5 px-3 flex items-center gap-2"
+                    >
+                      {ingredient}
+                      <button
+                        onClick={() => handleRemoveIngredient(ingredient)}
+                        className="hover:text-destructive transition-colors"
+                        type="button"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground italic">
+                    Drag ingredients here or type below
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="ingredients" className="text-xs font-medium text-muted-foreground">
+                  Add custom ingredient
+                </label>
+                <Input
+                  id="ingredients"
+                  placeholder="Type ingredient and press Enter"
+                  value={currentIngredient}
+                  onChange={(e) => setCurrentIngredient(e.target.value)}
+                  onKeyDown={handleAddIngredient}
+                  className="text-sm"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={handleBrainstorm}
+              disabled={isGenerating}
+              size="lg"
+              className="gap-2 text-lg py-6 px-8 shadow-lg hover:shadow-xl transition-all"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Generating Recipe...
+                </>
+              ) : (
+                <>
+                  <ChefHat className="h-5 w-5" />
+                  Get Recipe Idea
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
