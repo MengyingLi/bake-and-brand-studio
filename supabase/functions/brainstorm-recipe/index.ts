@@ -101,47 +101,20 @@ Return ONLY valid JSON in this exact format:
       }, { name: "build_prompts" });
 
       // Populate root span Input/Metadata for trace table visibility
-      try {
-        await rootSpan.log({
-          input: {
-            userPrompt: userContent,
-            month,
-            season,
-            ingredients,
-          },
-          metadata: {
-            systemPrompt: systemContent,
-            environment: "supabase-edge",
-            timestamp: new Date().toISOString(),
-            schemaVersion: "v2",
-          },
-        });
-      } catch (_) {}
-
-      // Log start event
-      if (logger) {
-        try {
-          console.info("[Braintrust] Sending start event...");
-          await logger.log({
-            event: "brainstorm_recipe",
-            type: "start",
-            input: {
-              month,
-              season,
-              ingredients,
-            },
-            metadata: {
-              environment: "supabase-edge",
-              timestamp: new Date().toISOString(),
-              systemPrompt: systemContent,
-              userPrompt: userContent,
-            },
-          });
-          console.info("[Braintrust] Start event sent successfully");
-        } catch (e) {
-          console.error("[Braintrust] Failed to send start event:", e);
-        }
-      }
+      rootSpan.log({
+        input: {
+          userPrompt: userContent,
+          month,
+          season,
+          ingredients,
+        },
+        metadata: {
+          systemPrompt: systemContent,
+          environment: "supabase-edge",
+          timestamp: new Date().toISOString(),
+          schemaVersion: "v2",
+        },
+      });
 
       // AI Gateway call
       const response = await rootSpan.traced(async (span: any) => {
@@ -253,20 +226,18 @@ Return ONLY valid JSON in this exact format:
       }, { name: "parse_tool_call" });
 
       // Log Output on root span for trace table visibility
-      try {
-        const preview = `${recipeIdeas?.idea?.name ?? "(no name)"}: ${
-          recipeIdeas?.idea?.description ?? ""
-        }`;
-        await rootSpan.log({
-          output: {
-            preview,
-            recipeJson: JSON.stringify(recipeIdeas),
-          },
-          metadata: {
-            duration: Date.now() - startTime,
-          },
-        });
-      } catch (_) {}
+      const preview = `${recipeIdeas?.idea?.name ?? "(no name)"}: ${
+        recipeIdeas?.idea?.description ?? ""
+      }`;
+      rootSpan.log({
+        output: {
+          preview,
+          recipeJson: JSON.stringify(recipeIdeas),
+        },
+        metadata: {
+          duration: Date.now() - startTime,
+        },
+      });
 
       return new Response(JSON.stringify(recipeIdeas), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

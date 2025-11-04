@@ -66,27 +66,17 @@ serve(async (req) => {
         throw new Error("OPENAI_KEY is not configured");
       }
 
-      // Log start event
-      if (logger) {
-        try {
-          console.info("[Braintrust] Sending start event...");
-          await logger.log({
-            event: "generate_food_variant",
-            type: "start",
-            input: {
-              hasImage: !!image,
-              sceneDescription,
-            },
-            metadata: {
-              environment: "supabase-edge",
-              timestamp: new Date().toISOString(),
-            },
-          });
-          console.info("[Braintrust] Start event sent successfully");
-        } catch (e) {
-          console.error("[Braintrust] Failed to send start event:", e);
-        }
-      }
+      // Log input on root span
+      rootSpan.log({
+        input: {
+          hasImage: !!image,
+          sceneDescription,
+        },
+        metadata: {
+          environment: "supabase-edge",
+          timestamp: new Date().toISOString(),
+        },
+      });
 
       console.log("Step 1: Analyzing product image...");
 
