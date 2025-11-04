@@ -66,10 +66,10 @@ serve(async (req) => {
         throw new Error("OPENAI_KEY is not configured");
       }
 
-      // Log input on root span
+      // Log request input
       rootSpan.log({
         input: {
-          hasImage: !!image,
+          image,
           sceneDescription,
         },
         metadata: {
@@ -204,10 +204,12 @@ serve(async (req) => {
       const imageUrl = `data:image/png;base64,${generatedImage}`;
       console.log("Variant generated successfully");
 
+      // Log output
       rootSpan.log({
-        step: "complete",
-        hasImageUrl: !!imageUrl,
-        duration: Date.now() - startTime,
+        output: { imageUrl },
+        metadata: {
+          duration: Date.now() - startTime,
+        },
       });
 
       return new Response(

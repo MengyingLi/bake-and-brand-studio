@@ -100,30 +100,22 @@ Return ONLY valid JSON in this exact format:
         return { systemContent, userContent };
       }, { name: "build_prompts" });
 
-      // Populate root span Input/Metadata for trace table visibility
+      // Log request input
       rootSpan.log({
-        input: { ingredients },
-        metadata: {
+        input: {
+          ingredients,
           month,
           season,
+        },
+        metadata: {
           environment: "supabase-edge",
           timestamp: new Date().toISOString(),
-          schemaVersion: "v2",
         },
       });
 
       // AI Gateway call
       const response = await rootSpan.traced(async (span: any) => {
-        // Log LLM input in OpenAI format
-        span.log({
-          input: [
-            { role: "system", content: systemContent },
-            { role: "user", content: userContent }
-          ],
-          metadata: {
-            model: "google/gemini-2.5-flash",
-          }
-        });
+        span.log({ step: "ai_gateway_call", model: "google/gemini-2.5-flash" });
         
         const response = await fetch(
           "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -230,15 +222,9 @@ Return ONLY valid JSON in this exact format:
         return recipeIdeas;
       }, { name: "parse_tool_call" });
 
-      // Log Output on root span for trace table visibility
-      const preview = `${recipeIdeas?.idea?.name ?? "(no name)"}: ${
-        recipeIdeas?.idea?.description ?? ""
-      }`;
+      // Log output
       rootSpan.log({
-        output: {
-          preview,
-          recipeJson: JSON.stringify(recipeIdeas),
-        },
+        output: recipeIdeas,
         metadata: {
           duration: Date.now() - startTime,
         },
