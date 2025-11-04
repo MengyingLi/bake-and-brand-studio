@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { SceneInput } from "@/components/SceneInput";
 import { ImageGallery } from "@/components/ImageGallery";
+import { RecipeBrainstorm } from "@/components/RecipeBrainstorm";
 import { Button } from "@/components/ui/button";
 import { Wand2, ChefHat } from "lucide-react";
 import { toast } from "sonner";
@@ -159,6 +160,21 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="space-y-12">
+          {/* Brainstorm Section */}
+          <RecipeBrainstorm />
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Then photograph your creation
+              </span>
+            </div>
+          </div>
+
           {/* Upload Section */}
           <section className="space-y-6">
             <ImageUpload
