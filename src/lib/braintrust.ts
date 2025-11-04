@@ -151,5 +151,5 @@ export const logUserInteraction = async (
   }
 ) => {
   // Client-side logging disabled - all logging happens server-side in Edge Function
-  return;
+    return;
 };
