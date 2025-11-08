@@ -13,6 +13,54 @@ Braintrust tracing allows you to:
 - View nested operations (spans) within a trace
 - Analyze patterns across multiple requests
 
+## Example Prompts That Work in Lovable
+
+Here are effective prompts you can use in Lovable to set up Braintrust tracing:
+
+### Initial Setup Prompt
+```
+"Add Braintrust tracing to my edge functions so I can monitor AI calls. 
+I want to track inputs, outputs, and performance metrics."
+```
+
+### Adding Tracing to Specific Functions
+```
+"Integrate Braintrust SDK into the brainstorm-recipe and generate-food-variant 
+edge functions. Log the inputs (ingredients/images), outputs (recipes/images), 
+and metadata like duration and timestamps."
+```
+
+### Configuring the Logger
+```
+"Set up the Braintrust logger with project name 'Bake-and-Brand-Studio' 
+and use the BRAINTRUST_API_KEY environment variable. Make sure to use 
+asyncFlush: false for immediate logging."
+```
+
+### Implementing Simple Logging
+```
+"Use rootSpan.log() to capture:
+- Input data (what goes into the function)
+- Output data (what comes out)
+- Metadata (duration, timestamp, environment)
+Keep it simple and consistent across all functions."
+```
+
+### Troubleshooting Prompt
+```
+"The Braintrust traces aren't showing up in my dashboard. Can you verify:
+1. The SDK is imported correctly
+2. BRAINTRUST_API_KEY is configured
+3. The logging calls are placed after operations complete"
+```
+
+### Documentation Prompt
+```
+"Create documentation explaining how the Braintrust integration works, 
+including what prompts I used, the logging schema, and how to view traces 
+in the dashboard."
+```
+
 ## Integration Steps Completed
 
 ### 1. Braintrust SDK Installation
